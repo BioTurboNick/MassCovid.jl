@@ -10,6 +10,7 @@ function loadmapgeometry()
 end
 
 function loadweekdata(datestring)
+    # cache data
     path = download("https://www.mass.gov/doc/weekly-public-health-report-raw-data-$(datestring)-2020/download")
     data = XLSX.readxlsx(path)
     sheet = XLSX.hassheet(data, "City_town") ? data["City_town"] : data["City_Town_Data"]
@@ -44,7 +45,7 @@ function drawsavemap(datestring)
     colors = [riskcolors[r] for r ∈ risklevel] |> permutedims
 
     plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false)
-    savefig("$(datestring).png")
+    savefig(joinpath("output", "$(datestring).png"))
 end
 
 geoms = loadmapgeometry()
@@ -72,4 +73,4 @@ for i = 1:5 # insert 4 more of the same frame at end
     drawsavemap(files[end])
     Plots.frame(anim)
 end
-gif(anim, "mass-covid-map.gif", fps = 1)
+gif(anim, joinpath("output", "mass-covid-map.gif"), fps = 1)
