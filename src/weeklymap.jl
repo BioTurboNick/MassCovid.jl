@@ -107,3 +107,4 @@ for i = 1:4 # insert 4 more of the same frame at end
     Plots.frame(anim)
 end
 gif(anim, joinpath("output", "mass-covid-map.gif"), fps = 1)
+savefig(joinpath("output", "$(weeks[end])_and_graph.png"))
