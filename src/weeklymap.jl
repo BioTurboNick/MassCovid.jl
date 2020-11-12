@@ -81,7 +81,7 @@ for w ∈ weeks
     risklevel = calculaterisklevels(counts, rates)
 
     colors = [riskcolors[r] for r ∈ risklevel] |> permutedims
-    push!(maps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title=w, labels=labels))
+    push!(maps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Risk Level\n[$(w)]", labels=labels))
     savefig(joinpath("output", "$(w).png"))
 
     # calculate weighted categories and append them
@@ -98,10 +98,9 @@ anim = Plots.Animation()
 for i ∈ eachindex(weeks)
     plot(maps[i])
     areaplot!(categorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
-                     xaxis=((1,length(weeks)),30), xticks=(1:13,weeks),
-                     inset=(1, bbox(0.08, 0.1, 0.5, 0.3, :bottom)), subplot=2,
-                     title="risk level by population", legend=:outerright, labels=permutedims(labels))
-    plot!(size=(1024,640))
+                     xaxis=((1,length(weeks)),30), xticks=(eachindex(weeks),weeks),
+                     inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
+                     title="By population", legend=:outerright, labels=permutedims(labels))
     Plots.frame(anim)
 end
 for i = 1:4 # insert 4 more of the same frame at end
