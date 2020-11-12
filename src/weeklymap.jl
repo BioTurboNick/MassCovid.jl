@@ -7,6 +7,8 @@ function loadmapgeometry()
     table = Shapefile.Table(path)
     sorted_order = sortperm(table.TOWN)
     geoms = Shapefile.shapes(table)[sorted_order]
+    pop2010 = table.POP2010[sorted_order]
+    geoms, pop2010
 end
 
 function loadweekdata(datestring)
@@ -22,7 +24,7 @@ function loadweekdata(datestring)
     return counts, rates, state_rate
 end
 
-function drawsavemap(datestring)
+function drawsavemap(datestring, categorycounts, pop2010)
     counts, rates, state_rate = loadweekdata(datestring)
 
     risklevel = [r == 0 ? 0 :
@@ -32,23 +34,37 @@ function drawsavemap(datestring)
                 r < 16 ? 4 :
                 r < 32 ? 5 :
                 r < 64 ? 6 : 7 for (c, r) ∈ zip(counts, rates)]
-
+    
     riskcolors = Dict(0 => :gray95,
-                      1 => :gray85,
-                      2 => :limegreen,
-                      3 => :yellow,
-                      4 => :red,
-                      5 => :red3,
-                      6 => :darkred,
-                      7 => :black)
+                        1 => :gray85,
+                        2 => :limegreen,
+                        3 => :yellow,
+                        4 => :red,
+                        5 => :red3,
+                        6 => :darkred,
+                        7 => :black)
+
+    weightedcategorycounts = AbstractFloat[]
+    for k ∈ keys(sort(riskcolors))
+        push!(weightedcategorycounts, sum(pop2010[dropdims(risklevel, dims=2) .== k]))
+    end
+    weightedcategorycounts = permutedims(weightedcategorycounts)
+    
+    if isempty(categorycounts)
+        categorycounts = weightedcategorycounts
+    else
+        categorycounts = [categorycounts; weightedcategorycounts]
+    end
 
     colors = [riskcolors[r] for r ∈ risklevel] |> permutedims
-
-    plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false)
+    plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title=datestring)
+    areaplot!(categorycounts, fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, legend=false, widen=false, inset=(1, bbox(0.1, 0.05, 0.4, 0.3, :bottom)), subplot=2, title="risk level by population")
     savefig(joinpath("output", "$(datestring).png"))
+
+    return categorycounts
 end
 
-geoms = loadmapgeometry()
+geoms, pop2010 = loadmapgeometry()
 
 files = ["august-12",
          "august-19",
@@ -65,12 +81,12 @@ files = ["august-12",
          "november-5"]
 
 anim = Plots.Animation()
+categorycounts = []
 for f ∈ files
-    drawsavemap(f)
+    categorycounts = drawsavemap(f, categorycounts, pop2010)
     Plots.frame(anim)
 end
-for i = 1:5 # insert 4 more of the same frame at end
-    drawsavemap(files[end])
+for i = 1:4 # insert 4 more of the same frame at end
     Plots.frame(anim)
 end
 gif(anim, joinpath("output", "mass-covid-map.gif"), fps = 1)
