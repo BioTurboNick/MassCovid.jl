@@ -53,6 +53,15 @@ weeks = ["august-12-2020",
          "october-29-2020",
          "november-5-2020"]
 
+labels = ["0 total",
+          "<5 total",
+          "<4 /100k/day",
+          "4-8 /100k/day",
+          "8-16 /100k/day",
+          "16-32 /100k/day",
+          "32-64 /100k/day",
+          ">64 /100k/day"]
+
 riskcolors = Dict(0 => :gray95,
                   1 => :gray85,
                   2 => :limegreen,
@@ -72,7 +81,7 @@ for w ∈ weeks
     risklevel = calculaterisklevels(counts, rates)
 
     colors = [riskcolors[r] for r ∈ risklevel] |> permutedims
-    push!(maps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title=w))
+    push!(maps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title=w, labels=labels))
     savefig(joinpath("output", "$(w).png"))
 
     # calculate weighted categories and append them
@@ -88,10 +97,11 @@ end
 anim = Plots.Animation()
 for i ∈ eachindex(weeks)
     plot(maps[i])
-    areaplot!(categorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, legend=false, widen=false,
+    areaplot!(categorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
                      xaxis=((1,length(weeks)),30), xticks=(1:13,weeks),
-                     inset=(1, bbox(0.1, 0.1, 0.4, 0.3, :bottom)), subplot=2,
-                     title="risk level by population")
+                     inset=(1, bbox(0.08, 0.1, 0.5, 0.3, :bottom)), subplot=2,
+                     title="risk level by population", legend=:outerright, labels=permutedims(labels))
+    plot!(size=(1024,640))
     Plots.frame(anim)
 end
 for i = 1:4 # insert 4 more of the same frame at end
