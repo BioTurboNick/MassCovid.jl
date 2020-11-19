@@ -52,7 +52,8 @@ weeks = ["august-12-2020",
          "october-22-2020",
          "october-29-2020",
          "november-5-2020",
-         "november-12-2020"]
+         "november-12-2020",
+         "november-19-2020"]
 
 labels = ["0 total",
           "<5 total",
