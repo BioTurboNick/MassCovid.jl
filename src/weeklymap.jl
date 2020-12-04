@@ -54,7 +54,8 @@ weeks = ["august-12-2020",
          "october-29-2020",
          "november-5-2020",
          "november-12-2020",
-         "november-19-2020"]
+         "november-19-2020"
+         "november-27.2020"]
 
 labels = ["0 total",
           "<5 total",
@@ -74,7 +75,7 @@ riskcolors = Dict(0 => :gray95,
                   5 => :red3,
                   6 => :darkred,
                   7 => :black,
-                  8 => RGB(75/255,0,75/255) # dark purple
+                  8 => RGB(85/255,0,85/255) # dark purple
                   )
 
 maps = []
