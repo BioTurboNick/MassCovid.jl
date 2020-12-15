@@ -135,6 +135,8 @@ never_entered_p3s2 = filter(n -> haskey(week_restricted, n) && week_restricted[n
 
 rolled_back = filter(n -> haskey(week_restricted, n) && week_restricted[n] > 1, names)
 
+stayed_in = filter(n -> !haskey(week_restricted, n), names)
+
 weekrates = []
 for w ∈ weeks
     path = downloadweeklyreport(w)
@@ -156,5 +158,27 @@ for name ∈ rolled_back
     push!(rolled_back_rates, townrates)
 end
 
-plot(never_entered_p3s2_rates, linecolor=:red, xticks=(eachindex(weeks),weeks), legend=false)
-plot!(rolled_back_rates, linecolor=:yellow, legend=false)
+rolled_back_rates_offset = []
+rolled_back_rates_indexes = []
+for name ∈ rolled_back
+    i = findfirst(x -> x == name, names)
+    townrates = [weekrates[j][i] for j ∈ eachindex(weeks)]
+    weekindexes = eachindex(weeks) .- week_offset .+ week_restricted[name]
+    push!(rolled_back_rates_offset, townrates)
+    push!(rolled_back_rates_indexes, weekindexes)
+end
+
+stayed_in_rates = []
+for name ∈ stayed_in
+    i = findfirst(x -> x == name, names)
+    townrates = [weekrates[j][i] for j ∈ eachindex(weeks)]
+    push!(stayed_in_rates, townrates)
+end
+
+p1 = plot(never_entered_p3s2_rates, linecolor=:red, xaxis=((1,length(weeks)),30), xticks=(eachindex(weeks),weeks), legend=false, alpha=0.5, title="Towns that never entered 3.2")
+p2 = plot(rolled_back_rates, linecolor=:orange, xaxis=((1,length(weeks)),30), xticks=(eachindex(weeks),weeks), legend=false, alpha=0.5, title="Towns that rolled back from 3.2")
+p3 = plot(rolled_back_rates_indexes, rolled_back_rates_offset, linecolor=:black, legend=false, alpha=0.5, title="Towns that rolled back from 3.2, 0 = rollback week")
+p4 = plot(stayed_in_rates, linecolor=:green, xaxis=((1,length(weeks)),30), xticks=(eachindex(weeks),weeks), legend=false, alpha=0.5, title="Towns that stayed in 3.2")
+
+plot(p1, p2, p3, p4, layout=grid(4,1), size=(512,1024))
+savefig(joinpath("output", "3_2_rollback.png"))
