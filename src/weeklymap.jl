@@ -35,7 +35,8 @@ function calculaterisklevels(counts, rates)
                  r < 16 ? 4 :
                  r < 32 ? 5 :
                  r < 64 ? 6 :
-                 r < 128 ? 7 : 8 for (c, r) ∈ zip(counts, rates)]
+                 r < 128 ? 7 :
+                 r < 256 ? 8 : 9 for (c, r) ∈ zip(counts, rates)]
 end
 
 geoms, pop2010 = loadtowndata()
@@ -68,7 +69,8 @@ labels = ["0 total",
           "16-32 /100k/day",
           "32-64 /100k/day",
           "64-128 /100k/day",
-          ">128 /100k/day"]
+          "128-256 /100k/day",
+          ">256 /100k/day"]
 
 riskcolors = Dict(0 => :gray95,
                   1 => :gray85,
@@ -78,7 +80,8 @@ riskcolors = Dict(0 => :gray95,
                   5 => :red3,
                   6 => :darkred,
                   7 => :black,
-                  8 => RGB(85/255,0,85/255) # dark purple
+                  8 => RGB(85/255,0,85/255), # dark purple
+                  9 => :darkblue
                   )
 
 maps = []
