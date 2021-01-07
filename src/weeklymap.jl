@@ -17,14 +17,29 @@ function downloadweeklyreport(datestring)
     download("https://www.mass.gov/doc/weekly-public-health-report-raw-data-$(datestring)/download", path)
 end
 
-function loadweekdata(path)
+function downloadweeklyreport2(datestring)
+    path = joinpath("input","$(datestring).xlsx")
+    ispath(path) && return path
+    download("https://www.mass.gov/doc/covid-19-raw-data-$(datestring)/download", path)
+end
+
+function loadweekdata(path, date)
     data = XLSX.readxlsx(path)
-    sheet = XLSX.hassheet(data, "City_town") ? data["City_town"] : data["City_Town_Data"]
-    countsraw = sheet["C2:C352"]
+
+    if XLSX.hassheet(data, "Weekly_City_Town")
+        sheet = data["Weekly_City_Town"]
+        dates = [zero(Date); Date.(sheet["N"][2:end])] # first row is header
+        daterows = findall(x -> x == date, dates)[1:(end-1)] # last row of set is "unknown town"
+        countsraw = sheet["E"][daterows]
+        rates = sheet["F"][daterows]
+    else
+        sheet = XLSX.hassheet(data, "City_town") ? data["City_town"] : data["City_Town_Data"]
+        countsraw = sheet["C2:C352"]
+        rates = sheet["D2:D352"]
+    end
     counts = [c == "<5" ? 2 : c for c ∈ countsraw] # replace "<5" with a number in range
-    rates = sheet["D2:D352"]
-    state_rate = sheet["D354"]
-    return counts, rates, state_rate
+    
+    return counts, rates
 end
 
 function calculaterisklevels(counts, rates)
@@ -61,7 +76,8 @@ weeks = ["august-12-2020",
          "december-10-2020",
          "december-17-2020",
          "december-24-2020",
-         "december-31-2020"]
+         "december-31-2020",
+         "january-7-2021"]
 
 labels = ["0 total",
           "<5 total",
@@ -90,9 +106,12 @@ maps = []
 categorycounts = []
 
 for w ∈ weeks
-    path = downloadweeklyreport(w)
-    counts, rates, state_rate = loadweekdata(path)
+    path = w ∈ weeks[1:22] ? downloadweeklyreport(w) :
+                             downloadweeklyreport2(w)
+    date = Date(w, DateFormat("U-d-y"))
+    counts, rates = loadweekdata(path, date)
     risklevel = calculaterisklevels(counts, rates)
+    ndims(risklevel) == 1 || (risklevel = dropdims(risklevel, dims = 2))
 
     colors = [riskcolors[r] for r ∈ risklevel] |> permutedims
     push!(maps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Risk Level\n[$(w)]", labels=labels))
@@ -101,7 +120,7 @@ for w ∈ weeks
     # calculate weighted categories and append them
     weightedcategorycounts = AbstractFloat[]
     for k ∈ keys(sort(riskcolors))
-        push!(weightedcategorycounts, sum(pop2010[dropdims(risklevel, dims=2) .== k]))
+        push!(weightedcategorycounts, sum(pop2010[risklevel .== k]))
     end
     weightedcategorycounts = permutedims(weightedcategorycounts)
     categorycounts = isempty(categorycounts) ? weightedcategorycounts : [categorycounts; weightedcategorycounts]
