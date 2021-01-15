@@ -106,9 +106,10 @@ riskcolors = Dict(0 => :gray95,
                   4 => :red,
                   5 => :red3,
                   6 => :darkred,
-                  7 => :black,
-                  8 => RGB(85/255,0,85/255), # dark purple
-                  9 => :darkblue
+                  7 => RGB(85/255, 0, 0),
+                  8 => :black,
+                  9 => RGB(0, 0, 85/255),
+                  10 => :darkblue
                   )
 
 maps = []
