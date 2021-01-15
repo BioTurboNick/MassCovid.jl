@@ -1,3 +1,4 @@
+using Dates
 using Shapefile
 using Plots
 using XLSX
@@ -28,8 +29,15 @@ function loadweekdata(path, date)
 
     if XLSX.hassheet(data, "Weekly_City_Town")
         sheet = data["Weekly_City_Town"]
-        dates = [zero(Date); Date.(sheet["N"][2:end])] # first row is header
-        daterows = findall(x -> x == date, dates)[1:(end-1)] # last row of set is "unknown town"
+        date_column = sheet["N1"] == "Report Date" ? "N" : "O" # they added a column
+        dates = [zero(Date); Date.(sheet[date_column][2:end])] # first row is header
+        daterows = findall(x -> x == date, dates)[1:end]
+        names = sheet["A"][daterows]
+
+        # remove "Unknown town"
+        unknowntown = findfirst(x -> x == "Unknown town", names)
+        isnothing(unknowntown) || popat!(daterows, unknowntown)
+
         countsraw = sheet["E"][daterows]
         rates = sheet["F"][daterows]
     else
@@ -77,7 +85,8 @@ weeks = ["august-12-2020",
          "december-17-2020",
          "december-24-2020",
          "december-31-2020",
-         "january-7-2021"]
+         "january-7-2021",
+         "january-14-2021"]
 
 labels = ["0 total",
           "<5 total",
