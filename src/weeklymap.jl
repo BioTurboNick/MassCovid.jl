@@ -124,7 +124,7 @@ for w ∈ weeks
     ndims(risklevel) == 1 || (risklevel = dropdims(risklevel, dims = 2))
 
     colors = [riskcolors[r] for r ∈ risklevel] |> permutedims
-    push!(maps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Risk Level\n[$(w)]", labels=labels))
+    push!(maps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Risk Level\n$(date)", labels=labels))
     savefig(joinpath("output", "$(w).png"))
 
     # calculate weighted categories and append them
@@ -136,18 +136,22 @@ for w ∈ weeks
     categorycounts = isempty(categorycounts) ? weightedcategorycounts : [categorycounts; weightedcategorycounts]
 end
 
+dates = Date.(weeks, DateFormat("U-d-y"))
+
 # State Animation
 anim = Plots.Animation()
 for i ∈ eachindex(weeks)
     plot(maps[i])
     areaplot!(categorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
-                     xaxis=((1,length(weeks)),30), xticks=(eachindex(weeks),weeks),
+                     xaxis=((1,length(weeks)),30), xticks=(1:2:length(dates), dates),
+                     yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
+                     tick_direction=:in,
                      inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
-                     title="By population", legend=:outerright, labels=permutedims(labels))
+                     legend=:outerright, labels=permutedims(labels))
     Plots.frame(anim)
 end
 for i = 1:4 # insert 4 more of the same frame at end
     Plots.frame(anim)
 end
-gif(anim, joinpath("output", "mass-covid-map.gif"), fps = 1)
-savefig(joinpath("output", "$(weeks[end])_and_graph.png"))
+gif(anim, joinpath("output", "animation_map.gif"), fps = 1)
+savefig(joinpath("output", "current_week_map.png"))
