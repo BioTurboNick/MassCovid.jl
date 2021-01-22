@@ -86,7 +86,8 @@ weeks = ["august-12-2020",
          "december-24-2020",
          "december-31-2020",
          "january-7-2021",
-         "january-14-2021"]
+         "january-14-2021",
+         "january-21-2021"]
 
 labels = ["0 total",
           "<5 total",
@@ -97,7 +98,8 @@ labels = ["0 total",
           "32-64 /100k/day",
           "64-128 /100k/day",
           "128-256 /100k/day",
-          ">256 /100k/day"]
+          "256-512 /100k/day",
+          ">512 /100k/day"]
 
 riskcolors = Dict(0 => :gray95,
                   1 => :gray85,
