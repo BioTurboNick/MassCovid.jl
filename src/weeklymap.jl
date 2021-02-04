@@ -35,7 +35,7 @@ function loadweekdata(path, date)
         names = sheet["A"][daterows]
 
         # remove "Unknown town"
-        unknowntown = findfirst(x -> x == "Unknown town", names)
+        unknowntown = findfirst(x -> x ∈ ("Unknown town", "Unknown"), names)
         isnothing(unknowntown) || popat!(daterows, unknowntown)
 
         countsraw = sheet["E"][daterows]
@@ -88,7 +88,8 @@ weeks = ["august-12-2020",
          "january-7-2021",
          "january-14-2021",
          "january-21-2021",
-         "january-28-2021"]
+         "january-28-2021",
+         "february-4-2021"]
 
 labels = ["0 total",
           "<5 total",
