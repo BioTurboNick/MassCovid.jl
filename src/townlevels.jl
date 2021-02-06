@@ -104,6 +104,13 @@ maxrate = maximum(rates, dims = 1)
 
 rates ./= maxrate
 
-allplots = [plot(rates[:, i], linecolor=:red, legend=false, ticks=:none, title=(townnames[i], 4)) for i ∈ eachindex(pop2010)]
+allplots = [plot(rates[:, i], linecolor=:red, legend=false, ticks=:none, title=townnames[i], titlefontsize=8) for i ∈ eachindex(pop2010)]
 
 plot(allplots..., size=(2048,2048))
+
+savefig(joinpath("output", "alltowns.png"))
+
+increasingtowns = uppercase.(["Amherst", "Blackstone", "Blandford", "Brewster", "Chatham", "Dedham", "Dennis", "Douglas", "Eastham", "Easton", "Egremont", "Foxborough", "Franklin", "Holyoke", "Mansfield", "Medway", "Mendon", "Montague",
+    "Norton", "Norwood", "Oak Bluffs", "Orleans", "Otis", "Palmer", "Phillipston", "Raynham", "Russell", "Rutland", "Springfield", "Truro", "Walpole", "Warwick", "Wellesley", "Wellfleet", "West Stockbridge", "Weston", "Williamstown"])
+histogram(pop2010[townnames .∈ Ref(increasingtowns)], legend=:none)
+savefig(joinpath("output", "increasingtownshist.png"))
