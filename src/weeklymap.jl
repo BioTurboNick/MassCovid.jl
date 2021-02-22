@@ -30,7 +30,7 @@ function loadweekdata(path, date)
     if XLSX.hassheet(data, "Weekly_City_Town")
         sheet = data["Weekly_City_Town"]
         date_column = sheet["N1"] == "Report Date" ? "N" : "O" # they added a column
-        dates = [zero(Date); Date.(sheet[date_column][2:end])] # first row is header
+        dates = [zero(Date); Date.(filter(!ismissing, sheet[date_column][2:end]))] # first row is header, may be trailed by missing
         daterows = findall(x -> x == date, dates)[1:end]
         names = sheet["A"][daterows]
 
@@ -90,7 +90,8 @@ weeks = ["august-12-2020",
          "january-21-2021",
          "january-28-2021",
          "february-4-2021",
-         "february-11-2021"]
+         "february-11-2021",
+         "february-18-2021"]
 
 labels = ["0 total",
           "<5 total",
