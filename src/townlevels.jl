@@ -70,7 +70,8 @@ weeks = ["december-3-2020",
          "january-28-2021",
          "february-4-2021",
          "february-11-2021",
-         "february-18-2021"]
+         "february-18-2021",
+         "february-25-2021"]
 
 weekrates = []
 for w ∈ weeks
@@ -100,3 +101,5 @@ increasingtowns = uppercase.(["Amherst", "Blackstone", "Blandford", "Brewster", 
     "Norton", "Norwood", "Oak Bluffs", "Orleans", "Otis", "Palmer", "Phillipston", "Raynham", "Russell", "Rutland", "Springfield", "Truro", "Walpole", "Warwick", "Wellesley", "Wellfleet", "West Stockbridge", "Weston", "Williamstown"])
 histogram(pop2010[townnames .∈ Ref(increasingtowns)], legend=:none)
 savefig(joinpath("output", "increasingtownshist.png"))
+
+# should turn into a map showing higher/lower

@@ -91,7 +91,8 @@ weeks = ["august-12-2020",
          "january-28-2021",
          "february-4-2021",
          "february-11-2021",
-         "february-18-2021"]
+         "february-18-2021",
+         "february-25-2021"]
 
 labels = ["0 total",
           "<5 total",
@@ -118,7 +119,7 @@ riskcolors = Dict(0 => :gray95,
                   10 => :darkblue
                   )
 
-maps = []
+ratemaps = []
 categorycounts = []
 
 for w ∈ weeks
@@ -130,7 +131,7 @@ for w ∈ weeks
     ndims(risklevel) == 1 || (risklevel = dropdims(risklevel, dims = 2))
 
     colors = [riskcolors[r] for r ∈ risklevel] |> permutedims
-    push!(maps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Risk Level\n$(date)", labels=labels))
+    push!(ratemaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Risk Level\n$(date)", labels=labels))
     savefig(joinpath("output", "$(w).png"))
 
     # calculate weighted categories and append them
@@ -147,7 +148,7 @@ dates = Date.(weeks, DateFormat("U-d-y"))
 # State Animation
 anim = Plots.Animation()
 for i ∈ eachindex(weeks)
-    plot(maps[i])
+    plot(ratemaps[i])
     areaplot!(categorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
                      xaxis=((1,length(weeks)),30), xticks=(1:2:length(dates), dates),
                      yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
