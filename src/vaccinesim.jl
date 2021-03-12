@@ -79,7 +79,7 @@ function update!(w::World)
 end
 
 function simulate(::Type{T}, nagents::Int, ninfected::Int, nframes::Int) where T <: AbstractAgent
-    world = World(1, [[T(S, 0) for i ∈ 1:(nagents - ninfected)]; [Agent(I, 0) for i ∈ 1:ninfected]])
+    world = World(1, [[T(S, 0) for i ∈ 1:(nagents - ninfected)]; [T(I, 0) for i ∈ 1:ninfected]])
 
     history = [world]
     for i ∈ 1:nframes
