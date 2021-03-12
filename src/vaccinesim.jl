@@ -10,12 +10,12 @@ mutable struct Agent <: AbstractAgent
     days_infected::Int
 end
 
-mutable struct RelaxingAgent <: AbstractAgent
+mutable struct VaccinatingAgent <: AbstractAgent
     status::Status
     days_infected::Int
 end
 
-mutable struct VaccinatingAgent <: AbstractAgent
+mutable struct RelaxingAgent <: AbstractAgent
     status::Status
     days_infected::Int
 end
@@ -113,6 +113,7 @@ pexposure(a::RelaxingAgent) = isrecovered(a) ? 0.5 : 0.1
 vaccinationrate(::RelaxingAgent) = 2 / 330
 results3 = metasimulate(RelaxingAgent)
 p3 = plot(permutedims(hcat(results3...)), labels = ["susceptible" "infected" "recovered" "dead"], linewidth = 3, legend = :none)
+
 
 plot(p1, p2, p3, layout = grid(1, 3))
 savefig(joinpath("output", "models.png"))
