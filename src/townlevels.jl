@@ -73,7 +73,8 @@ weeks = ["december-3-2020",
          "february-18-2021",
          "february-25-2021",
          "march-4-2021",
-         "march-11-2021"]
+         "march-11-2021",
+         "march-18-2021"]
 
 weekrates = []
 for w ∈ weeks
