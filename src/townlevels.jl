@@ -59,27 +59,18 @@ end
 
 townnames, geoms, pop2010 = loadtowndata()
 
-weeks = ["december-3-2020",
-         "december-10-2020",
-         "december-17-2020",
-         "december-24-2020",
-         "december-31-2020",
-         "january-7-2021",
-         "january-14-2021",
-         "january-21-2021",
-         "january-28-2021",
-         "february-4-2021",
+weeks = ["february-4-2021",
          "february-11-2021",
          "february-18-2021",
          "february-25-2021",
          "march-4-2021",
          "march-11-2021",
-         "march-18-2021"]
+         "march-18-2021",
+         "march-25-2021"]
 
 weekrates = []
 for w ∈ weeks
-    path = w ∈ weeks[1:6] ? downloadweeklyreport(w) :
-                            downloadweeklyreport2(w)
+    path = downloadweeklyreport2(w)
     date = Date(w, DateFormat("U-d-y"))
     counts, rates = loadweekdata(path, date)
     rates[rates .== "<5"] .= 2
