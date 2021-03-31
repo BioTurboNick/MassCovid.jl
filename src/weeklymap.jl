@@ -141,9 +141,9 @@ pposlabels = ["0.0 %",
 
 riskcolors = Dict(0 => :gray95,
                   1 => :gray85,
-                  2 => :limegreen,
+                  2 => :chartreuse2,
                   3 => :yellow,
-                  4 => :red,
+                  4 => RGB(243/255, 12/255, 0),
                   5 => :red3,
                   6 => :darkred,
                   7 => RGB(85/255, 0, 0),
@@ -152,13 +152,25 @@ riskcolors = Dict(0 => :gray95,
                   10 => :darkblue
                   )
 
+pposriskcolors = Dict(0 => :gray95,
+                      1 => :gray85,
+                      2 => :chartreuse2,
+                      3 => :yellow,
+                      4 => RGB(255/255, 192/255, 0),
+                      5 => RGB(243/255, 12/255, 0),
+                      6 => :red3,
+                      7 => :darkred,
+                      8 => RGB(85/255, 0, 0),
+                      9 => :black,
+                      10 => RGB(0, 0, 85/255)
+                      )
+
 ratemaps = []
 pposmaps = []
 categorycounts = []
 pposcategorycounts = []
 
 for w ∈ weeks
-    println(w)
     path = w ∈ weeks[1:22] ? downloadweeklyreport(w) :
                              downloadweeklyreport2(w)
     date = Date(w, DateFormat("U-d-y"))
@@ -172,7 +184,7 @@ for w ∈ weeks
 
     pposrisklevel = calculatepposrisklevels(counts, ppos)
     ndims(pposrisklevel) == 1 || (pposrisklevel = dropdims(pposrisklevel, dims = 2))
-    colors = [riskcolors[r] for r ∈ pposrisklevel] |> permutedims
+    colors = [pposriskcolors[r] for r ∈ pposrisklevel] |> permutedims
     push!(pposmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Percent Positivity Risk Level\n$(date)", labels=labels))
     savefig(joinpath("output", "$(w)-percent-positive.png"))
 
@@ -186,7 +198,7 @@ for w ∈ weeks
 
     # calculate weighted categories and append them
     pposweightedcategorycounts = AbstractFloat[]
-    for k ∈ keys(sort(riskcolors))
+    for k ∈ keys(sort(pposriskcolors))
         push!(pposweightedcategorycounts, sum(pop2010[pposrisklevel .== k]))
     end
     pposweightedcategorycounts = permutedims(pposweightedcategorycounts)
@@ -215,13 +227,13 @@ savefig(joinpath("output", "current_week_map.png"))
 
 anim = Plots.Animation()
 for i ∈ eachindex(weeks)
-    plot(pposratemaps[i])
-    areaplot!(pposcategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
+    plot(pposmaps[i])
+    areaplot!(pposcategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(pposriskcolors)))), linewidth=0, widen=false,
                      xaxis=((1,length(weeks)),30), xticks=(1:2:length(dates), dates[1:2:end]),
                      yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
                      tick_direction=:in,
                      inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
-                     legend=:outerright, labels=permutedims(labels))
+                     legend=:outerright, labels=permutedims(pposlabels))
     Plots.frame(anim)
 end
 for i = 1:4 # insert 4 more of the same frame at end
