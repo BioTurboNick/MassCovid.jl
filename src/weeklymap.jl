@@ -48,7 +48,7 @@ function loadweekdata(path, date)
         rates = sheet["D2:D352"]
         ppos = sheet["I2:I352"]
     end
-    counts = [c == "<5" ? 2 : c for c ∈ countsraw] # replace "<5" with a number in range
+    counts = [c == "<5" || 0 < c < 5 ? 2 : c for c ∈ countsraw] # replace "<5" with a number in range; or if state forgets to mask them.
     
     return counts, rates, ppos
 end
@@ -68,15 +68,15 @@ end
 
 function calculatepposrisklevels(counts, ppos)
     pposrisklevel = [c == 0 ? 0 :
-                     p == 0 ? 1 :
-                     p < 0.002 ? 2 :
-                     p < 0.004 ? 3 :
-                     p < 0.008 ? 4 :
-                     p < 0.016 ? 5 :
-                     p < 0.032 ? 6 :
-                     p < 0.064 ? 7 :
-                     p < 0.128 ? 8 :
-                     p < 0.256 ? 9 : 10 for (c, p) ∈ zip(counts, ppos)]
+                     c < 5 ? 1 :
+                     p < 0.004 ? 2 :
+                     p < 0.008 ? 3 :
+                     p < 0.016 ? 4 :
+                     p < 0.032 ? 5 :
+                     p < 0.064 ? 6 :
+                     p < 0.128 ? 7 :
+                     p < 0.256 ? 8 :
+                     p < 0.512 ? 9 : 10 for (c, p) ∈ zip(counts, ppos)]
 end
 
 geoms, pop2010 = loadtowndata()
@@ -113,7 +113,8 @@ weeks = ["august-12-2020",
          "march-4-2021",
          "march-11-2021",
          "march-18-2021",
-         "march-25-2021"]
+         "march-25-2021",
+         "april-1-2021"]
 
 labels = ["0 total",
           "<5 total",
@@ -128,16 +129,16 @@ labels = ["0 total",
           ">512 /100k/day"]
 
 pposlabels = ["0.0 %",
-              "~0.0 %",
-              "<0.2 %",
-              "0.2-0.4 %",
+              "<5 total",
+              "<0.4 %",
               "0.4-0.8 %",
               "0.8-1.6 %",
               "1.6-3.2 %",
               "3.2-6.4 %",
               "6.4-12.8 %",
               "12.8-25.6 %",
-              ">25.6 %"]
+              "25.6-51.2 %",
+              ">51.2%"]
 
 riskcolors = Dict(0 => :gray95,
                   1 => :gray85,
