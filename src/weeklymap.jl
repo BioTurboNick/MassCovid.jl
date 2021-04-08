@@ -79,6 +79,8 @@ function calculatepposrisklevels(counts, ppos)
                      p < 0.512 ? 9 : 10 for (c, p) ∈ zip(counts, ppos)]
 end
 
+
+
 geoms, pop2010 = loadtowndata()
 
 weeks = ["august-12-2020",
@@ -114,7 +116,8 @@ weeks = ["august-12-2020",
          "march-11-2021",
          "march-18-2021",
          "march-25-2021",
-         "april-1-2021"]
+         "april-1-2021",
+         "april-8-2021"]
 
 labels = ["0 total",
           "<5 total",
@@ -165,6 +168,8 @@ pposriskcolors = Dict(0 => :gray95,
                       9 => :black,
                       10 => RGB(0, 0, 85/255)
                       )
+
+mkpath("output")
 
 ratemaps = []
 pposmaps = []
