@@ -13,10 +13,12 @@ function loadtowndata()
 end
 
 function downloadweeklyreport(datestring)
-    path = joinpath("input","$(datestring).xlsx")
+    path = joinpath("input","$(datestring)-vaccine.xlsx")
     ispath(path) && return path
-    download("https://www.mass.gov/doc/weekly-covid-19-vaccination-report-$(datestring)/download", path)
+    download("https://www.mass.gov/doc/weekly-covid-19-municipality-vaccination-report-$(datestring)/download", path)
 end
+
+agecat = ["0-19 Years", "20-29 Years", "30-49 Years", "50-64 Years", "65-74 Years", "75+ Years", "Total"]
 
 function agecategory(agestring)
     return agestring == "0-19 Years" ? 1 :
@@ -25,45 +27,76 @@ function agecategory(agestring)
            agestring == "50-64 Years" ? 4 :
            agestring == "65-74 Years" ? 5 :
            agestring == "75+ Years" ? 6 :
-           0
+           7
 end
 
-function loadweekdata(path, date)
+function unmergetowns!(names, ages, onepluspercent, fullpercent, maintown, subtown)
+    append!(names, fill(subtown, 7))
+    append!(ages, collect((1:6...,0)))
+    range = findfirst(x -> startswith(x, "$maintown "), names) .+ (0:6)
+    append!(onepluspercent, onepluspercent[range])
+    append!(fullpercent, fullpercent[range])
+    nothing
+end
+
+function loadweekdata(path)
     data = XLSX.readxlsx(path)
 
     sheet = data["Age - municipality"]
-    dates = [zero(Date); Date.(filter(!ismissing, sheet[date_column][2:end]))] # first row is header, may be trailed by missing
-    daterows = findall(x -> x == date, dates)[1:end]
     names = sheet["B"][3:2361]
+    ages = agecategory.(sheet["C"][3:2361])
+    onepluspercent = sheet["G"][3:2361]
+    fullpercent = sheet["J"][3:2361]
+
+    replace!(onepluspercent, "*" => 0, ">95%" => 1)
+    replace!(fullpercent, "*" => 0, ">95%" => 1)
+
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Amherst", "Pelham")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Athol", "Phillipston")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Becket", "Washington")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Charlemont", "Hawley")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Chilmark", "Aquinnah")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Easthampton", "Westhampton")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Egremont", "Mount Washington")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Granville", "Westhampton")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Great Barrington", "Alford")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Greenfield", "Leyden")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Hinsdale", "Peru")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Lanesborough", "Hancock")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Lanesborough", "New Ashford")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "North Adams", "Clarksburg")
+    unmergetowns!(names, ages, onepluspercent, fullpercent, "Westfield", "Montgomery")
+
     order = sortperm(names)
     names = names[order]
-    ages = agecategory.(sheet["C"][3:2361][order])
-    not_total = findall(>(0), ages)
-    onepluspercent = sheet["G"][3:2361][order][not_total]
-    fullpercent = sheet["J"][3:2361][order][not_total]
+    ages = ages[order]
+    onepluspercent = onepluspercent[order]
+    fullpercent = fullpercent[order]
 
     # place "Unspecified" at end
-    unknowntown = findfirst(x -> x ∈ ("Unspecified"), names)
+    unknowntown = findfirst(==("Unspecified"), names)
     onepluspercent = [onepluspercent[1:unknowntown - 1]; onepluspercent[unknowntown + 7:end]; onepluspercent[unknowntown:unknowntown + 6]]
     fullpercent = [fullpercent[1:unknowntown - 1]; fullpercent[unknowntown + 7:end]; fullpercent[unknowntown:unknowntown + 6]]
 
+
     # dim 1 = town, dim 2 = age range
-    onepluspercent = permutedims(reshape(onepluspercent, (6, 352)), (2, 1))
-    fullpercent = permutedims(reshape(fullpercent, (6, 352)), (2, 1))
+    onepluspercent = permutedims(reshape(onepluspercent, (7, 352)), (2, 1))
+    fullpercent = permutedims(reshape(fullpercent, (7, 352)), (2, 1))
     return onepluspercent, fullpercent
 end
 
-function calculaterisklevels(counts, rates)
-    risklevel = [r == 0 ? 0 :
-                 c == 2 ? 1 :
-                 r < 4 ? 2 :
-                 r < 8 ? 3 :
-                 r < 16 ? 4 :
-                 r < 32 ? 5 :
-                 r < 64 ? 6 :
-                 r < 128 ? 7 :
-                 r < 256 ? 8 :
-                 r < 512 ? 9 : 10 for (c, r) ∈ zip(counts, rates)]
+function calculaterisklevels(fraction)
+    risklevel = [r == 0.0 ? 10 :
+                r < 0.1 ? 9 :
+                 r < 0.2 ? 8 :
+                 r < 0.3 ? 7 :
+                 r < 0.4 ? 6 :
+                 r < 0.5 ? 5 :
+                 r < 0.6 ? 4 :
+                 r < 0.7 ? 3 :
+                 r < 0.8 ? 2 :
+                 r < 0.9 ? 1 :
+                 0 for r ∈ fraction]
 end
 
 geoms, pop2010 = loadtowndata()
@@ -78,117 +111,111 @@ weeks = ["march-11-2021",
          "april-29-2021",
          "may-6-2021"]
 
-labels = ["0 total",
-          "<5 total",
-          "<4 /100k/day",
-          "4-8 /100k/day",
-          "8-16 /100k/day",
-          "16-32 /100k/day",
-          "32-64 /100k/day",
-          "64-128 /100k/day",
-          "128-256 /100k/day",
-          "256-512 /100k/day",
-          ">512 /100k/day"]
+labels = reverse(["0",
+          "<10 %",
+          "10-20 %",
+          "20-30 %",
+          "30-40 %",
+          "40-50 %",
+          "50-60 %",
+          "60-70 %",
+          "70-80 %",
+          "80-90 %",
+          ">90 %"])
 
-pposlabels = ["0.0 %",
-              "<5 total",
-              "<1.5 %",
-              "1.5-3.0 %",
-              "3.0-4.5 %",
-              "4.5-6.0 %",
-              "6.0-7.5 %",
-              "7.5-9.0 %",
-              "9.0-10.5 %",
-              ">10.5 %"]
-
-riskcolors = Dict(0 => :gray95,
-                  1 => :gray85,
+riskcolors = Dict(0 => :deepskyblue,
+                  1 => :green,
                   2 => :chartreuse2,
                   3 => :yellow,
                   4 => RGB(243/255, 12/255, 0),
                   5 => :red3,
                   6 => :darkred,
                   7 => RGB(85/255, 0, 0),
-                  8 => :black,
+                  8 => :indigo,
                   9 => RGB(0, 0, 85/255),
-                  10 => :darkblue
+                  10 => :black
                   )
 
+push!(geoms, Shapefile.Polygon(Shapefile.Rect(0, 0, 1, 1), [1], [Shapefile.Point(1, 1)])) # add dummy shape for Unspecified
 
 mkpath("output")
 
-ratemaps = []
-pposmaps = []
-categorycounts = []
-pposcategorycounts = []
+for i = 1:7 # age categories
+    oneplusmaps = []
+    fullmaps = []
+    onepluscategorycounts = []
+    fullcategorycounts = []
 
-for w ∈ weeks
-    path = downloadweeklyreport(w)
-    date = Date(w, DateFormat("U-d-y"))
-    counts, rates, ppos = loadweekdata(path, date)
-    risklevel = calculaterisklevels(counts, rates)
-    ndims(risklevel) == 1 || (risklevel = dropdims(risklevel, dims = 2))
+    for w ∈ weeks
+        path = downloadweeklyreport(w)
+        onepluspercent, fullpercent = loadweekdata(path)
+        date = Date(w, DateFormat("U-d-y"))
 
-    colors = [riskcolors[r] for r ∈ risklevel] |> permutedims
-    push!(ratemaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Risk Level\n$(date)", labels=labels))
-    savefig(joinpath("output", "$(w).png"))
+        oneplusrisklevel = calculaterisklevels(onepluspercent)[:, i]
+        ndims(oneplusrisklevel) == 1 || (oneplusrisklevel = dropdims(oneplusrisklevel, dims = 2))
 
-    pposrisklevel = calculatepposrisklevels(counts, ppos)
-    ndims(pposrisklevel) == 1 || (pposrisklevel = dropdims(pposrisklevel, dims = 2))
-    colors = [pposriskcolors[r] for r ∈ pposrisklevel] |> permutedims
-    push!(pposmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Percent Positivity Risk Level\n$(date)", labels=labels))
-    savefig(joinpath("output", "$(w)-percent-positive.png"))
+        colors = [riskcolors[r] for r ∈ oneplusrisklevel] |> permutedims
+        push!(oneplusmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Vaccination Level (At Least One; $(agecat[i]))\n$(date)", labels=labels))
+        savefig(joinpath("output", "$(w)-vaccine-oneplus_$(agecat[i]).png"))
 
-    # calculate weighted categories and append them
-    weightedcategorycounts = AbstractFloat[]
-    for k ∈ keys(sort(riskcolors))
-        push!(weightedcategorycounts, sum(pop2010[risklevel .== k]))
+        fullrisklevel = calculaterisklevels(fullpercent)[:, i]
+        ndims(fullrisklevel) == 1 || (fullrisklevel = dropdims(fullrisklevel, dims = 2))
+        colors = [riskcolors[r] for r ∈ fullrisklevel] |> permutedims
+        push!(fullmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Vaccination Level (Full; $(agecat[i]))\n$(date)", labels=labels))
+        savefig(joinpath("output", "$(w)-vaccine-full_$(agecat[i]).png"))
+
+        # calculate weighted categories and append them
+        weightedcategorycounts = AbstractFloat[]
+        for k ∈ keys(sort(riskcolors))
+            push!(weightedcategorycounts, sum(pop2010[oneplusrisklevel[1:end - 1] .== k]))
+        end
+        weightedcategorycounts = permutedims(weightedcategorycounts)
+        onepluscategorycounts = isempty(onepluscategorycounts) ? weightedcategorycounts : [onepluscategorycounts; weightedcategorycounts]
+
+        # calculate weighted categories and append them
+        fullweightedcategorycounts = AbstractFloat[]
+        for k ∈ keys(sort(riskcolors))
+            push!(fullweightedcategorycounts, sum(pop2010[fullrisklevel[1:end - 1] .== k]))
+        end
+        fullweightedcategorycounts = permutedims(fullweightedcategorycounts)
+        fullcategorycounts = isempty(fullcategorycounts) ? fullweightedcategorycounts : [fullcategorycounts; fullweightedcategorycounts]
     end
-    weightedcategorycounts = permutedims(weightedcategorycounts)
-    categorycounts = isempty(categorycounts) ? weightedcategorycounts : [categorycounts; weightedcategorycounts]
 
-    # calculate weighted categories and append them
-    pposweightedcategorycounts = AbstractFloat[]
-    for k ∈ keys(sort(pposriskcolors))
-        push!(pposweightedcategorycounts, sum(pop2010[pposrisklevel .== k]))
+    dates = Date.(weeks, DateFormat("U-d-y"))
+
+    # State Animation
+    anim = Plots.Animation()
+    for i ∈ eachindex(weeks)
+        plot(oneplusmaps[i])
+        areaplot!(onepluscategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
+                        xaxis=((1,length(weeks)),30), xticks=(1:2:length(dates), dates[1:2:end]),
+                        yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
+                        tick_direction=:in,
+                        inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
+                        legend=:outerright, labels=permutedims(labels))
+        Plots.frame(anim)
     end
-    pposweightedcategorycounts = permutedims(pposweightedcategorycounts)
-    pposcategorycounts = isempty(pposcategorycounts) ? pposweightedcategorycounts : [pposcategorycounts; pposweightedcategorycounts]
-end
+    for i = 1:4 # insert 4 more of the same frame at end
+        Plots.frame(anim)
+    end
+    gif(anim, joinpath("output", "animation_map_vaccine_oneplus_$(agecat[i]).gif"), fps = 1)
+    savefig(joinpath("output", "current_week_map_vaccine_oneplus_$(agecat[i]).png"))
 
-dates = Date.(weeks, DateFormat("U-d-y"))
+    anim = Plots.Animation()
+    for i ∈ eachindex(weeks)
+        plot(fullmaps[i])
+        areaplot!(fullcategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
+                        xaxis=((1,length(weeks)),30), xticks=(1:2:length(dates), dates[1:2:end]),
+                        yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
+                        tick_direction=:in,
+                        inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
+                        legend=:outerright, labels=permutedims(labels))
+        Plots.frame(anim)
+    end
+    for i = 1:4 # insert 4 more of the same frame at end
+        Plots.frame(anim)
+    end
+    gif(anim, joinpath("output", "animation_map_vaccine_full_$(agecat[i]).gif"), fps = 1)
+    savefig(joinpath("output", "current_week_map_vaccine_full_$(agecat[i]).png"))
 
-# State Animation
-anim = Plots.Animation()
-for i ∈ eachindex(weeks)
-    plot(ratemaps[i])
-    areaplot!(categorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
-                     xaxis=((1,length(weeks)),30), xticks=(1:2:length(dates), dates[1:2:end]),
-                     yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
-                     tick_direction=:in,
-                     inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
-                     legend=:outerright, labels=permutedims(labels))
-    Plots.frame(anim)
 end
-for i = 1:4 # insert 4 more of the same frame at end
-    Plots.frame(anim)
-end
-gif(anim, joinpath("output", "animation_map.gif"), fps = 1)
-savefig(joinpath("output", "current_week_map.png"))
-
-anim = Plots.Animation()
-for i ∈ eachindex(weeks)
-    plot(pposmaps[i])
-    areaplot!(pposcategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(pposriskcolors)))), linewidth=0, widen=false,
-                     xaxis=((1,length(weeks)),30), xticks=(1:2:length(dates), dates[1:2:end]),
-                     yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
-                     tick_direction=:in,
-                     inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
-                     legend=:outerright, labels=permutedims(pposlabels))
-    Plots.frame(anim)
-end
-for i = 1:4 # insert 4 more of the same frame at end
-    Plots.frame(anim)
-end
-gif(anim, joinpath("output", "animation_map_percent_positivity.gif"), fps = 1)
-savefig(joinpath("output", "current_week_map_percent_positivity.png"))
