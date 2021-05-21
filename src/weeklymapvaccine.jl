@@ -27,15 +27,17 @@ function agecategory(agestring)
            agestring == "50-64 Years" ? 4 :
            agestring == "65-74 Years" ? 5 :
            agestring == "75+ Years" ? 6 :
-           7
+           agestring == "Total" ? 7 :
+           8 # youth categories
 end
 
-function unmergetowns!(names, ages, onepluspercent, fullpercent, maintown, subtown)
-    append!(names, fill(subtown, 7))
-    append!(ages, collect((1:6...,0)))
-    range = findfirst(x -> startswith(x, "$maintown "), names) .+ (0:6)
+function unmergetowns!(names, ages, pops, onepluspercent, fullpercent, maintown, subtown, nrows)
+    append!(names, fill(subtown, nrows))
+    append!(ages, collect(((1:nrows - 1)...,0)))
+    range = findfirst(x -> startswith(x, "$maintown "), names) .+ (0:nrows - 1)
     append!(onepluspercent, onepluspercent[range])
     append!(fullpercent, fullpercent[range])
+    append!(pops, pops[range])
     nothing
 end
 
@@ -43,42 +45,61 @@ function loadweekdata(path)
     data = XLSX.readxlsx(path)
 
     sheet = data["Age - municipality"]
-    names = sheet["B"][3:2361]
-    ages = agecategory.(sheet["C"][3:2361])
-    onepluspercent = sheet["G"][3:2361]
-    fullpercent = sheet["J"][3:2361]
-
+    nrows = "12-15 Years" ∈ sheet["C"][3:end] ? 8 : 7
+    range = 2 .+ (1:nrows * 337)
+    names = sheet["B"][range]
+    pops = sheet["D"][range]
+    ages = agecategory.(sheet["C"][range])
+    onepluspercent = sheet["G"][range]
+    fullpercent = sheet["J"][range]
     replace!(onepluspercent, "*" => 0, ">95%" => 1)
     replace!(fullpercent, "*" => 0, ">95%" => 1)
 
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Amherst", "Pelham")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Athol", "Phillipston")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Becket", "Washington")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Charlemont", "Hawley")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Chilmark", "Aquinnah")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Easthampton", "Westhampton")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Egremont", "Mount Washington")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Granville", "Westhampton")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Great Barrington", "Alford")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Greenfield", "Leyden")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Hinsdale", "Peru")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Lanesborough", "Hancock")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Lanesborough", "New Ashford")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "North Adams", "Clarksburg")
-    unmergetowns!(names, ages, onepluspercent, fullpercent, "Westfield", "Montgomery")
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Amherst", "Pelham", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Athol", "Phillipston", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Becket", "Washington", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Charlemont", "Hawley", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Chilmark", "Aquinnah", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Easthampton", "Westhampton", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Egremont", "Mount Washington", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Granville", "Westhampton", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Great Barrington", "Alford", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Greenfield", "Leyden", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Hinsdale", "Peru", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Lanesborough", "Hancock", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Lanesborough", "New Ashford", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "North Adams", "Clarksburg", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Westfield", "Montgomery", nrows)
 
     order = sortperm(names)
     names = names[order]
     ages = ages[order]
+    pops = pops[order]
     onepluspercent = onepluspercent[order]
     fullpercent = fullpercent[order]
 
+    # put 12-15 and 16-19 back into 0-19
+    @views if any(==(8), ages)
+        shape = (8, length(pops) ÷ 8)
+        pops = reshape(pops, shape)
+        childpop = pops[8,:] .- sum(pops[3:7,:], dims = 1)'
+        onepluspercentr = reshape(onepluspercent, shape)
+        fullpercentr = reshape(fullpercent, shape)
+        onepluspop12to15 = pops[1,:] .* onepluspercentr[1,:]
+        onepluspop16to19 = pops[2,:] .* onepluspercentr[2,:]
+        fullpop12to15 = pops[1,:] .* fullpercentr[1,:]
+        fullpop16to19 = pops[2,:] .* fullpercentr[2,:]
+        onepluspercentr[2,:] = (onepluspop12to15 .+ onepluspop16to19) ./ childpop
+        fullpercentr[2,:] = (fullpop12to15 .+ fullpop16to19) ./ childpop
+        onepluspercent = vec(onepluspercentr[2:8,:])
+        fullpercent = vec(fullpercentr[2:8,:])
+    end
+    
     # place "Unspecified" at end
     unknowntown = findfirst(==("Unspecified"), names)
     onepluspercent = [onepluspercent[1:unknowntown - 1]; onepluspercent[unknowntown + 7:end]; onepluspercent[unknowntown:unknowntown + 6]]
     fullpercent = [fullpercent[1:unknowntown - 1]; fullpercent[unknowntown + 7:end]; fullpercent[unknowntown:unknowntown + 6]]
-
-
+    
     # dim 1 = town, dim 2 = age range
     onepluspercent = permutedims(reshape(onepluspercent, (7, 352)), (2, 1))
     fullpercent = permutedims(reshape(fullpercent, (7, 352)), (2, 1))
@@ -110,7 +131,8 @@ weeks = ["march-11-2021",
          "april-22-2021",
          "april-29-2021",
          "may-6-2021",
-         "may-13-2021"]
+         "may-13-2021",
+         "may-20-2021"]
 
 labels = reverse(["*",
           "<10 %",
