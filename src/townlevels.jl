@@ -37,6 +37,7 @@ function loadweekdata(path, date)
     if XLSX.hassheet(data, "Weekly_City_Town")
         sheet = data["Weekly_City_Town"]
         date_column = sheet["N1"] == "Report Date" ? "N" : "O" # they added a column
+        ppos_column = sheet["N1"] == "Report Date" ? "K" : "L" # they added a column
         dates = [zero(Date); Date.(filter(!ismissing, sheet[date_column][2:end]))] # first row is header, may be trailed by missing
         daterows = findall(x -> x == date, dates)[1:end]
         names = sheet["A"][daterows]
@@ -47,26 +48,28 @@ function loadweekdata(path, date)
 
         countsraw = sheet["E"][daterows]
         rates = sheet["F"][daterows]
+        ppos = sheet[ppos_column][daterows]
     else
         sheet = XLSX.hassheet(data, "City_town") ? data["City_town"] : data["City_Town_Data"]
         countsraw = sheet["C2:C352"]
         rates = sheet["D2:D352"]
+        ppos = sheet["I2:I352"]
     end
-    counts = [c == "<5" ? 2 : c for c ∈ countsraw] # replace "<5" with a number in range
+    counts = [c == "<5" || 0 < c < 5 ? 2 : c for c ∈ countsraw] # replace "<5" with a number in range; or if state forgets to mask them.
     
-    return counts, rates
+    return counts, rates, ppos
 end
 
 townnames, geoms, pop2010 = loadtowndata()
 
-weeks = ["february-4-2021",
-         "february-11-2021",
-         "february-18-2021",
-         "february-25-2021",
-         "march-4-2021",
-         "march-11-2021",
-         "march-18-2021",
-         "march-25-2021"]
+weeks = ["april-1-2021",
+         "april-8-2021",
+         "april-15-2021",
+         "april-22-2021",
+         "april-29-2021",
+         "may-6-2021",
+         "may-13-2021",
+         "may-20-2021"]
 
 weekrates = []
 for w ∈ weeks
@@ -91,9 +94,9 @@ plot(allplots..., size=(2048,2048))
 
 savefig(joinpath("output", "alltowns.png"))
 
-increasingtowns = uppercase.(["Amherst", "Blackstone", "Blandford", "Brewster", "Chatham", "Dedham", "Dennis", "Douglas", "Eastham", "Easton", "Egremont", "Foxborough", "Franklin", "Holyoke", "Mansfield", "Medway", "Mendon", "Montague",
-    "Norton", "Norwood", "Oak Bluffs", "Orleans", "Otis", "Palmer", "Phillipston", "Raynham", "Russell", "Rutland", "Springfield", "Truro", "Walpole", "Warwick", "Wellesley", "Wellfleet", "West Stockbridge", "Weston", "Williamstown"])
-histogram(pop2010[townnames .∈ Ref(increasingtowns)], legend=:none)
-savefig(joinpath("output", "increasingtownshist.png"))
+# increasingtowns = uppercase.(["Amherst", "Blackstone", "Blandford", "Brewster", "Chatham", "Dedham", "Dennis", "Douglas", "Eastham", "Easton", "Egremont", "Foxborough", "Franklin", "Holyoke", "Mansfield", "Medway", "Mendon", "Montague",
+#     "Norton", "Norwood", "Oak Bluffs", "Orleans", "Otis", "Palmer", "Phillipston", "Raynham", "Russell", "Rutland", "Springfield", "Truro", "Walpole", "Warwick", "Wellesley", "Wellfleet", "West Stockbridge", "Weston", "Williamstown"])
+# histogram(pop2010[townnames .∈ Ref(increasingtowns)], legend=:none)
+# savefig(joinpath("output", "increasingtownshist.png"))
 
-# should turn into a map showing higher/lower
+# # should turn into a map showing higher/lower
