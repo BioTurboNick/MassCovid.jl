@@ -44,7 +44,7 @@ end
 function loadweekdata(path)
     data = XLSX.readxlsx(path)
 
-    sheet = data["Age - municipality"]
+    sheet = XLSX.hassheet(data, "Age - municipality") ? data["Age - municipality"] : data["Age – municipality"]
     nrows = "12-15 Years" ∈ sheet["C"][3:end] ? 8 : 7
     range = 2 .+ (1:nrows * 337)
     names = sheet["B"][range]
@@ -141,7 +141,8 @@ weeks = ["march-11-2021",
          "july-1-2021",
          "july-8-2021",
          "july-15-2021",
-         "july-22-2021"]
+         "july-22-2021",
+         "july-29-2021"]
 
 labels = reverse(["*",
           "<10 %",
