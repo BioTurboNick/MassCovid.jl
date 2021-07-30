@@ -9,7 +9,7 @@ function loadtowndata()
     sorted_order = sortperm(table.TOWN)
     geoms = Shapefile.shapes(table)[sorted_order]
     pop2010 = table.POP2010[sorted_order]
-    geoms, pop2010
+    geoms, pop2010, table.TOWN
 end
 
 function downloadweeklyreport(datestring)
@@ -62,7 +62,7 @@ function loadweekdata(path)
     unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Chilmark", "Aquinnah", nrows)
     unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Easthampton", "Westhampton", nrows)
     unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Egremont", "Mount Washington", nrows)
-    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Granville", "Westhampton", nrows)
+    unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Granville", "Tolland", nrows)
     unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Great Barrington", "Alford", nrows)
     unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Greenfield", "Leyden", nrows)
     unmergetowns!(names, ages, pops, onepluspercent, fullpercent, "Hinsdale", "Peru", nrows)
@@ -77,6 +77,16 @@ function loadweekdata(path)
     pops = pops[order]
     onepluspercent = onepluspercent[order]
     fullpercent = fullpercent[order]
+
+    # remove Unspecified
+    unknowntownstart = findfirst(==("Unspecified"), names)
+    unknowntownend = findlast(==("Unspecified"), names)
+    names = [names[1:unknowntownstart - 1]; names[unknowntownend + 1:end]]
+    ages = [ages[1:unknowntownstart - 1]; ages[unknowntownend + 1:end]]
+    pops = [pops[1:unknowntownstart - 1]; pops[unknowntownend + 1:end]]
+    onepluspercent = [onepluspercent[1:unknowntownstart - 1]; onepluspercent[unknowntownend + 1:end]]
+    fullpercent = [fullpercent[1:unknowntownstart - 1]; fullpercent[unknowntownend + 1:end]]
+    
 
     # put 12-15 and 16-19 back into 0-19
     @views if any(==(8), ages)
@@ -94,15 +104,10 @@ function loadweekdata(path)
         onepluspercent = vec(onepluspercentr[2:8,:])
         fullpercent = vec(fullpercentr[2:8,:])
     end
-    
-    # place "Unspecified" at end
-    unknowntown = findfirst(==("Unspecified"), names)
-    onepluspercent = [onepluspercent[1:unknowntown - 1]; onepluspercent[unknowntown + 7:end]; onepluspercent[unknowntown:unknowntown + 6]]
-    fullpercent = [fullpercent[1:unknowntown - 1]; fullpercent[unknowntown + 7:end]; fullpercent[unknowntown:unknowntown + 6]]
-    
+
     # dim 1 = town, dim 2 = age range
-    onepluspercent = permutedims(reshape(onepluspercent, (7, 352)), (2, 1))
-    fullpercent = permutedims(reshape(fullpercent, (7, 352)), (2, 1))
+    onepluspercent = permutedims(reshape(onepluspercent, (7, 350)), (2, 1))
+    fullpercent = permutedims(reshape(fullpercent, (7, 350)), (2, 1))
     return onepluspercent, fullpercent
 end
 
@@ -169,8 +174,6 @@ riskcolors = Dict(0 => :deepskyblue,
                   10 => :black
                   )
 
-push!(geoms, Shapefile.Polygon(Shapefile.Rect(0, 0, 1, 1), [1], [Shapefile.Point(1, 1)])) # add dummy shape for Unspecified
-
 mkpath("output")
 
 for i = 1:7 # age categories
@@ -200,7 +203,7 @@ for i = 1:7 # age categories
         # calculate weighted categories and append them
         weightedcategorycounts = AbstractFloat[]
         for k ∈ keys(sort(riskcolors))
-            push!(weightedcategorycounts, sum(pop2010[oneplusrisklevel[1:end - 1] .== k]))
+            push!(weightedcategorycounts, sum(pop2010[oneplusrisklevel[1:end] .== k]))
         end
         weightedcategorycounts = permutedims(weightedcategorycounts)
         onepluscategorycounts = isempty(onepluscategorycounts) ? weightedcategorycounts : [onepluscategorycounts; weightedcategorycounts]
@@ -208,7 +211,7 @@ for i = 1:7 # age categories
         # calculate weighted categories and append them
         fullweightedcategorycounts = AbstractFloat[]
         for k ∈ keys(sort(riskcolors))
-            push!(fullweightedcategorycounts, sum(pop2010[fullrisklevel[1:end - 1] .== k]))
+            push!(fullweightedcategorycounts, sum(pop2010[fullrisklevel[1:end] .== k]))
         end
         fullweightedcategorycounts = permutedims(fullweightedcategorycounts)
         fullcategorycounts = isempty(fullcategorycounts) ? fullweightedcategorycounts : [fullcategorycounts; fullweightedcategorycounts]
