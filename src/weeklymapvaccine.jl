@@ -106,8 +106,8 @@ function loadweekdata(path)
     end
 
     # dim 1 = town, dim 2 = age range
-    onepluspercent = permutedims(reshape(onepluspercent, (7, 350)), (2, 1))
-    fullpercent = permutedims(reshape(fullpercent, (7, 350)), (2, 1))
+    onepluspercent = permutedims(reshape(onepluspercent, (7, 351)), (2, 1))
+    fullpercent = permutedims(reshape(fullpercent, (7, 351)), (2, 1))
     return onepluspercent, fullpercent
 end
 
