@@ -132,7 +132,8 @@ weeks = ["august-12-2020",
         "july-15-2021",
         "july-22-2021",
         "July-29-2021",
-        "august-5-2021"]
+        "august-5-2021",
+        "august-12-2021"]
 
 mwra_towns = sort(["WILMINGTON",
                 "BEDFORD",
@@ -251,11 +252,11 @@ for w ∈ weeks
     push!(other_counts, sum(counts[other_indexes]))
 end
 
-plot([mwra_counts mwra_north_counts mwra_south_counts other_counts] ./ 2, labels = ["MWRA" "MWRA North" "MWRA South" "Non-MWRA"], lw = 3, yformatter=:plain,
+plot([mwra_counts mwra_north_counts mwra_south_counts other_counts] ./ 2, labels = ["MWRA" "MWRA South" "MWRA North" "Non-MWRA"], lw = 3, yformatter=:plain,
      xaxis=((1,length(weeks)),30), xticks=(1:2:length(dates), dates[1:2:end]),
      ylabel="New cases/week", title="Massachusetts weekly cases by MWRA service area")
 savefig(joinpath("output", "mwra_cases.png"))
-plot([mwra_counts mwra_north_counts mwra_south_counts other_counts][(end - 12):end,:] ./ 2, labels = ["MWRA" "MWRA North" "MWRA South" "Non-MWRA"], lw = 3, yformatter=:plain,
+plot([mwra_counts mwra_north_counts mwra_south_counts other_counts][(end - 12):end,:] ./ 2, labels = ["MWRA" "MWRA South" "MWRA North" "Non-MWRA"], lw = 3, yformatter=:plain,
      xaxis=((1,length(weeks[(end - 12):end])),30), xticks=(1:2:length(dates[(end - 12):end]), dates[(end - 12):2:end]),
      ylabel="New cases/week", title="Massachusetts weekly cases by MWRA service area")
 savefig(joinpath("output", "mwra_cases_recent.png"))
