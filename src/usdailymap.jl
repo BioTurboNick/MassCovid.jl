@@ -15,7 +15,7 @@ PUERTORICO = 72
 # States between 1 and 56
 
 function loadcountydata()
-    shapepath = joinpath("usgeodata", "cb_2017_us_county_500k.shp")
+    shapepath = joinpath("usgeodata", "cb_2018_us_county_5m.shp")
     table = Shapefile.Table(shapepath)
     geoms = Shapefile.shapes(table)
     stateids = parse.(Int, table.STATEFP)
@@ -146,6 +146,7 @@ lower48colors = colors[stateids .∉ Ref([ALASKA, HAWAII, PUERTORICO]), :]
 anim = Plots.Animation()
 date = Date("1/22/2020", dateformat"mm/dd/yyyy")
 for i ∈ 1:length(eachrow(lower48colors))
+    println("iteration $i")
     lower48plot = plot(lower48geoms, fillcolor=permutedims(lower48colors[:, i]), size=(2048, 1280),
         grid=false, showaxis=false, ticks=false, aspect_ratio=1.2, title="United States COVID-19 Hot Spots\n$(date)\nNicholas C. Bauer | Twitter: @bioturbonick",
         titlefontcolor=:white, background_color=:black, linecolor=cgrad(:thermal)[0.0])
