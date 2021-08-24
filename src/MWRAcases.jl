@@ -82,39 +82,59 @@ end
 geoms, pop2010, towns = loadtowndata()
 
 weeks = ["august-12-2020",
-         "august-19-2020",
-         "august-26-2020",
-         "september-2-2020",
-         "september-9-2020",
-         "september-16-2020",
-         "september-23-2020",
-         "september-30-2020",
-         "october-7-2020",
-         "october-14-2020",
-         "october-22-2020",
-         "october-29-2020",
-         "november-5-2020",
-         "november-12-2020",
-         "november-19-2020",
-         "november-27-2020",
-         "december-3-2020",
-         "december-10-2020",
-         "december-17-2020",
-         "december-24-2020",
-         "december-31-2020",
-         "january-7-2021",
-         "january-14-2021",
-         "january-21-2021",
-         "january-28-2021",
-         "february-4-2021",
-         "february-11-2021",
-         "february-18-2021",
-         "february-25-2021",
-         "march-4-2021",
-         "march-11-2021",
-         "march-18-2021",
-         "march-25-2021",
-         "april-1-2021"]
+        "august-19-2020",
+        "august-26-2020",
+        "september-2-2020",
+        "september-9-2020",
+        "september-16-2020",
+        "september-23-2020",
+        "september-30-2020",
+        "october-7-2020",
+        "october-14-2020",
+        "october-22-2020",
+        "october-29-2020",
+        "november-5-2020",
+        "november-12-2020",
+        "november-19-2020",
+        "november-27-2020",
+        "december-3-2020",
+        "december-10-2020",
+        "december-17-2020",
+        "december-24-2020",
+        "december-31-2020",
+        "january-7-2021",
+        "january-14-2021",
+        "january-21-2021",
+        "january-28-2021",
+        "february-4-2021",
+        "february-11-2021",
+        "february-18-2021",
+        "february-25-2021",
+        "march-4-2021",
+        "march-11-2021",
+        "march-18-2021",
+        "march-25-2021",
+        "april-1-2021",
+        "april-8-2021",
+        "april-15-2021",
+        "april-22-2021",
+        "april-29-2021",
+        "may-6-2021",
+        "may-13-2021",
+        "may-20-2021",
+        "may-27-2021",
+        "june-3-2021",
+        "june-10-2021",
+        "june-17-2021",
+        "june-24-2021",
+        "july-1-2021",
+        "july-8-2021",
+        "july-15-2021",
+        "july-22-2021",
+        "July-29-2021",
+        "august-5-2021",
+        "august-12-2021",
+        "august-19-2021"]
 
 mwra_towns = sort(["WILMINGTON",
                 "BEDFORD",
@@ -160,14 +180,66 @@ mwra_towns = sort(["WILMINGTON",
                 "WEYMOUTH",
                 "HINGHAM"])
 
+mwra_north_towns = sort(["WILMINGTON",
+                          "BEDFORD",
+                          "BURLINGTON",
+                          "WOBURN",
+                          "READING",
+                          "WAKEFIELD",
+                        "STONEHAM",
+                        "WINCHESTER",
+                        "LEXINGTON",
+                        "ARLINGTON",
+                        "MEDFORD",
+                        "MELROSE",
+                        "MALDEN",
+                        "WALTHAM",
+                        "BELMONT",
+                        "SOMERVILLE",
+                        "EVERETT",
+                        "REVERE",
+                        "CHELSEA",
+                        "WINTHROP",
+                        "CAMBRIDGE",
+                        "WATERTOWN",
+                        "BOSTON",
+                        "NEWTON",
+                        "BROOKLINE"])
+
+mwra_south_towns = sort(["BOSTON",
+                        "NEWTON",
+                        "WELLESLEY",
+                        "NATICK",
+                        "FRAMINGHAM",
+                        "ASHLAND",
+                        "NEEDHAM",
+                        "BROOKLINE",
+                        "DEDHAM",
+                        "WESTWOOD",
+                        "NORWOOD",
+                        "WALPOLE",
+                        "MILTON",
+                        "CANTON",
+                        "STOUGHTON",
+                        "RANDOLPH",
+                        "QUINCY",
+                        "BRAINTREE",
+                        "HOLBROOK",
+                        "WEYMOUTH",
+                        "HINGHAM"])
+
 other_towns = setdiff(towns, mwra_towns)
 
 mwra_indexes = indexin(mwra_towns, towns)
+mwra_north_indexes = indexin(mwra_north_towns, towns)
+mwra_south_indexes = indexin(mwra_south_towns, towns)
 other_indexes = indexin(other_towns, towns)
 
 dates = Date.(weeks, DateFormat("U-d-y"))
 
 mwra_counts = []
+mwra_north_counts = []
+mwra_south_counts = []
 other_counts = []
 for w ∈ weeks
     path = w ∈ weeks[1:22] ? downloadweeklyreport(w) :
@@ -176,10 +248,16 @@ for w ∈ weeks
     counts, rates, ppos = loadweekdata(path, date)
 
     push!(mwra_counts, sum(counts[mwra_indexes]))
+    push!(mwra_north_counts, sum(counts[mwra_north_indexes]))
+    push!(mwra_south_counts, sum(counts[mwra_south_indexes]))
     push!(other_counts, sum(counts[other_indexes]))
 end
 
-plot([mwra_counts other_counts] ./ 2, labels = ["MWRA" "Non-MWRA"], lw = 3, yformatter=:plain,
+plot([mwra_counts mwra_north_counts mwra_south_counts other_counts] ./ 2, labels = ["MWRA" "MWRA South" "MWRA North" "Non-MWRA"], lw = 3, yformatter=:plain,
      xaxis=((1,length(weeks)),30), xticks=(1:2:length(dates), dates[1:2:end]),
      ylabel="New cases/week", title="Massachusetts weekly cases by MWRA service area")
 savefig(joinpath("output", "mwra_cases.png"))
+plot([mwra_counts mwra_north_counts mwra_south_counts other_counts][(end - 12):end,:] ./ 2, labels = ["MWRA" "MWRA South" "MWRA North" "Non-MWRA"], lw = 3, yformatter=:plain,
+     xaxis=((1,length(weeks[(end - 12):end])),30), xticks=(1:2:length(dates[(end - 12):end]), dates[(end - 12):2:end]),
+     ylabel="New cases/week", title="Massachusetts weekly cases by MWRA service area")
+savefig(joinpath("output", "mwra_cases_recent.png"))
