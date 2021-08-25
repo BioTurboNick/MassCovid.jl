@@ -51,6 +51,9 @@ correctionsrows = contains.(Missings.replace(jhudata.Admin2, ""), "Correct")
 
 countyrows = .!(outofrows .| territoryrows .| unassignedrows .| correctionsrows .| prrows)
 
+
+# Should assign Unassigned to all Nebraska counties ***************************************
+
 admin2 = Missings.replace(jhudata.Admin2[countyrows], "")
 stname = Missings.replace(jhudata.Province_State[countyrows], "")
 # Massachusetts remapping
@@ -194,7 +197,7 @@ end
 
 anim = Plots.Animation()
 date = Date("1/28/2020", dateformat"mm/dd/yyyy")
-for i ∈ 1:length(eachrow(lower48colors))
+for i ∈ 1:length(eachcol(lower48colors))
     println("Day $i")
     lower48plot = plot(lower48geoms, fillcolor=permutedims(lower48colors[:, i]), size=(2048, 1280),
         grid=false, showaxis=false, ticks=false, aspect_ratio=1.2, title="United States COVID-19 Hot Spots\n$(date)\nNicholas C Bauer PhD | Twitter: @bioturbonick",
@@ -214,6 +217,5 @@ for i = 1:20 # insert 20 more of the same frame at end
     Plots.frame(anim)
 end
 gif(anim, joinpath("output", "us_animation_map.gif"), fps = 7)
-gif(anim, joinpath("output", "us_animation_map.mp4"), fps = 7)
 
 # try to update colors instead of redrawing whole plot?
