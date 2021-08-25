@@ -53,6 +53,7 @@ countyrows = .!(outofrows .| territoryrows .| unassignedrows .| correctionsrows 
 
 
 # Should assign Unassigned to all Nebraska counties ***************************************
+# Also check for anomalious maximums and remove them.
 
 admin2 = Missings.replace(jhudata.Admin2[countyrows], "")
 stname = Missings.replace(jhudata.Province_State[countyrows], "")
