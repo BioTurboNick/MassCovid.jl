@@ -232,5 +232,3 @@ for i = 1:20 # insert 20 more of the same frame at end
     Plots.frame(anim)
 end
 gif(anim, joinpath("output", "us_animation_map.gif"), fps = 7)
-
-# try to update colors instead of redrawing whole plot?
