@@ -123,9 +123,9 @@ moplatterow = platterows[findfirst(==("Missouri"), stname[platterows])]
 countydata = jhudata[countyrows]
 sevendaysago = [r[][12] for r ∈ eachrow(countydata)]
 
-sevendayaverages = zeros(length(geoms))
+sevendayaverages = fill(0, length(geoms), 0)
 
-for col ∈ (12 + 6):length(countydata[1])
+for col ∈ (12 + 7):length(countydata[1])
     today = [r[][col] for r ∈ eachrow(countydata)]
     weektotal = today .- sevendaysago
     sevendaysago = [r[][col - 6] for r ∈ eachrow(countydata)]
@@ -155,6 +155,20 @@ for col ∈ (12 + 6):length(countydata[1])
 end
 
 sevendayaverages ./= pop2019
+
+# adjust for data jumps
+sevendayaverages[stateids .== 29, 408:414] .= mean(sevendayaverages[stateids .== 29, [407, 415]], dims = 2) # Missouri jump
+sevendayaverages[stateids .== 29, 445:451] .= mean(sevendayaverages[stateids .== 29, [444, 452]], dims = 2) # Missouri jump
+sevendayaverages[stateids .== 13, 280:287] .= mean(sevendayaverages[stateids .== 13, [279, 288]], dims = 2) # Georgia jump
+sevendayaverages[findfirst(stateids .== 13) + 143, 280:292] .= mean(sevendayaverages[findfirst(stateids .== 13) + 143, [279, 293]]) # Georgia jump
+sevendayaverages[findfirst(stateids .== 15) + 2, 276:293] .= mean(sevendayaverages[findfirst(stateids .== 15) + 2, [275, 294]]) # Hawaii jump
+txproblems = [7, 10, 29, 64, 69, 82, 86, 89, 94, 120, 128, 130, 133, 136, 143, 193, 247, 254]
+sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, 237:243] .= mean(sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, [236, 244]], dims = 2) # Texas jump
+sevendayaverages[findfirst(stateids .== 48), 234:236] .= mean(sevendayaverages[findfirst(stateids .== 48), [233, 237]]) # Texas jump
+sevendayaverages[findfirst(stateids .== 48), 241:243] .= mean(sevendayaverages[findfirst(stateids .== 48), [240, 244]]) # Texas jump
+
+
+
 sevendayaverages ./= maximum(sevendayaverages, dims = 2)
 
 
