@@ -139,7 +139,8 @@ weeks = ["august-12-2020",
          "July-29-2021",
          "august-5-2021",
          "august-12-2021",
-         "august-19-2021"]
+         "august-19-2021",
+         "august-26-2021"]
 
 labels = ["0 total",
           "<5 total",

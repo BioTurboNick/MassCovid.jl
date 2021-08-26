@@ -25,3 +25,4 @@ Manifest.toml
 *.png
 *.gif
 *.mp4
+input/time_series_covid19_confirmed_US.csv
