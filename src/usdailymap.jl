@@ -5,6 +5,7 @@ using XLSX
 using CSV
 using Missings
 using Statistics
+using InvertedIndices
 
 function downloadcountycasedata()
     path = joinpath("input", "time_series_covid19_confirmed_US.csv")
@@ -44,18 +45,17 @@ geoms, stateids, pop2019 = loadcountydata()
 jhudata = CSV.File(downloadcountycasedata())
 
 outofrows = startswith.(Missings.replace(jhudata.Admin2, ""), "Out of")
-unassignedrows = startswith.(Missings.replace(jhudata.Admin2, ""), "Unassigned")
+
 territoryrows = ismissing.(jhudata.Admin2)
 prrows = jhudata.Province_State .== "Puerto Rico"
 correctionsrows = contains.(Missings.replace(jhudata.Admin2, ""), "Correct")
 
-countyrows = .!(outofrows .| territoryrows .| unassignedrows .| correctionsrows .| prrows)
+countyrows = .!(outofrows .| territoryrows .| correctionsrows .| prrows)
 
-
-# Should assign Unassigned to all Nebraska counties ***************************************
 # Also check for anomalious maximums and remove them.
 
 admin2 = Missings.replace(jhudata.Admin2[countyrows], "")
+unassignedrows = findall(==("Unassigned"), admin2)
 stname = Missings.replace(jhudata.Province_State[countyrows], "")
 # Massachusetts remapping
 madnrow = findfirst(==("Dukes and Nantucket"), admin2) # two counties
@@ -149,7 +149,17 @@ for col ∈ (12 + 7):length(countydata[1])
     sevendayaverage[mocassrow] += mokcsplit
     sevendayaverage[moplatterow] += mokcsplit
 
-    deleteat!(sevendayaverage, sort!([madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow]))
+    #distribute Unassigned
+    for st ∈ unique(stname)
+        countycount = count(stname .== st) - 1
+        antiindexes = union(findall(==("Unassigned"), admin2), [madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow])
+        stnamereduced = stname[Not(antiindexes)]
+        countypops = pop2019[stnamereduced .== st]
+        statepop = sum(countypops)
+        sevendayaverage[Not(union(findall(!=(st), stname), antiindexes))] .+= sevendayaverage[(stname .== st) .& (admin2 .== "Unassigned")] .* (countypops ./ statepop)
+    end
+    
+    deleteat!(sevendayaverage, sort!([madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow, unassignedrows...]))
 
     sevendayaverages = hcat(sevendayaverages, sevendayaverage)
 end
@@ -166,8 +176,11 @@ txproblems = [7, 10, 29, 64, 69, 82, 86, 89, 94, 120, 128, 130, 133, 136, 143, 1
 sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, 237:243] .= mean(sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, [236, 244]], dims = 2) # Texas jump
 sevendayaverages[findfirst(stateids .== 48), 234:236] .= mean(sevendayaverages[findfirst(stateids .== 48), [233, 237]]) # Texas jump
 sevendayaverages[findfirst(stateids .== 48), 241:243] .= mean(sevendayaverages[findfirst(stateids .== 48), [240, 244]]) # Texas jump
-
-
+sevendayaverages[stateids .== 48, 278:284] .= mean(sevendayaverages[stateids .== 48, [277, 285]], dims = 2) # Texas jump
+txproblems = [11,16,18,26,27,28,73,75,81,93,97,109,142,144,145,147,150,154,167,198,206,239]
+sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, 370:376] .= mean(sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, [369, 377]], dims = 2) # Texas jump
+sevendayaverages[stateids .== 1, 400:406] .= mean(sevendayaverages[stateids .== 1, [399, 407]], dims = 2) # Alabama jump
+sevendayaverages[stateids .== 1, 412:418] .= mean(sevendayaverages[stateids .== 1, [411, 419]], dims = 2) # Alabama jump
 
 sevendayaverages ./= maximum(sevendayaverages, dims = 2)
 
@@ -232,3 +245,5 @@ for i = 1:20 # insert 20 more of the same frame at end
     Plots.frame(anim)
 end
 gif(anim, joinpath("output", "us_animation_map.gif"), fps = 7)
+
+# ]
