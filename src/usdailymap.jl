@@ -178,9 +178,12 @@ sevendayaverages[findfirst(stateids .== 48), 234:236] .= mean(sevendayaverages[f
 sevendayaverages[findfirst(stateids .== 48), 241:243] .= mean(sevendayaverages[findfirst(stateids .== 48), [240, 244]]) # Texas jump
 sevendayaverages[stateids .== 48, 278:284] .= mean(sevendayaverages[stateids .== 48, [277, 285]], dims = 2) # Texas jump
 txproblems = [11,16,18,26,27,28,73,75,81,93,97,109,142,144,145,147,150,154,167,198,206,239]
-sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, 370:376] .= mean(sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, [369, 377]], dims = 2) # Texas jump
+sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, 370:378] .= mean(sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, [369, 379]], dims = 2) # Texas jump
 sevendayaverages[stateids .== 1, 400:406] .= mean(sevendayaverages[stateids .== 1, [399, 407]], dims = 2) # Alabama jump
 sevendayaverages[stateids .== 1, 412:418] .= mean(sevendayaverages[stateids .== 1, [411, 419]], dims = 2) # Alabama jump
+sevendayaverages[stateids .== 5, 397:403] .= mean(sevendayaverages[stateids .== 5, [396, 404]], dims = 2) # Arkansas jump
+
+#12-17 Tennessee
 
 sevendayaverages ./= maximum(sevendayaverages, dims = 2)
 
@@ -245,5 +248,4 @@ for i = 1:20 # insert 20 more of the same frame at end
     Plots.frame(anim)
 end
 gif(anim, joinpath("output", "us_animation_map.gif"), fps = 7)
-
-# ]
+mp4(anim, joinpath("output", "us_animation_map1.mp4"), fps = 7)
