@@ -193,7 +193,8 @@ hawaiigeoms = geoms[stateids .== HAWAII]
 #puertoricogeoms = geoms[stateids .== PUERTORICO]
 lower48geoms = geoms[stateids .∉ Ref([ALASKA, HAWAII, PUERTORICO])]
 
-colors = map(x -> cgrad(:thermal)[x], sevendayaverages)
+grad = cgrad(:thermal)
+colors = map(x -> grad[x], sevendayaverages)
 alaskacolors = colors[stateids .== ALASKA, :]
 hawaiicolors = colors[stateids .== HAWAII, :]
 lower48colors = colors[stateids .∉ Ref([ALASKA, HAWAII, PUERTORICO]), :]
@@ -232,14 +233,14 @@ for i ∈ 1:length(eachcol(lower48colors))
     println("Day $i")
     lower48plot = plot(lower48geoms, fillcolor=permutedims(lower48colors[:, i]), size=(2048, 1280),
         grid=false, showaxis=false, ticks=false, aspect_ratio=1.2, title="United States COVID-19 Hot Spots\n$(date)\nNicholas C Bauer PhD | Twitter: @bioturbonick",
-        titlefontcolor=:white, background_color=:black, linecolor=cgrad(:thermal)[0.0])
+        titlefontcolor=:white, background_color=:black, linecolor=grad[0.0])
     plot!(lower48plot, alaskageoms, fillcolor=permutedims(alaskacolors[:, i]),
         grid=false, showaxis=false, ticks=false, xlims=(-180,-130), ylims=(51, 78), aspect_ratio=2,
-        linecolor=cgrad(:thermal)[0.0],
+        linecolor=grad[0.0],
         inset=(1, bbox(0.0, 0.0, 0.3, 0.3, :bottom, :left)), subplot=2)
     plot!(lower48plot, hawaiigeoms, fillcolor=permutedims(hawaiicolors[:, i]),
         grid=false, showaxis=false, ticks=false, xlims=(-160, -154), ylims=(18, 23),
-        linecolor=cgrad(:thermal)[0.0],
+        linecolor=grad[0.0],
         inset=(1, bbox(0.25, 0.0, 0.2, 0.2, :bottom, :left)), subplot=3)
     Plots.frame(anim)
     date += Day(1)
