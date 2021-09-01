@@ -120,34 +120,36 @@ mocassrow = cassrows[findfirst(==("Missouri"), stname[cassrows])]
 platterows = findall(==("Platte"), admin2)
 moplatterow = platterows[findfirst(==("Missouri"), stname[platterows])]
 
+averagelength = 1
+
 countydata = jhudata[countyrows]
-sevendaysago = [r[][12] for r ∈ eachrow(countydata)]
+multidaysago = [r[][12] for r ∈ eachrow(countydata)]
 
-sevendayaverages = fill(0, length(geoms), 0)
+multidayaverages = fill(0, length(geoms), 0)
 
-for col ∈ (12 + 7):length(countydata[1])
+for col ∈ (12 + averagelength):length(countydata[1])
     today = [r[][col] for r ∈ eachrow(countydata)]
-    weektotal = today .- sevendaysago
-    sevendaysago = [r[][col - 6] for r ∈ eachrow(countydata)]
-    sevendayaverage = weektotal ./ 7
+    weektotal = today .- multidaysago
+    multidaysago = [r[][col - averagelength + 1] for r ∈ eachrow(countydata)]
+    multidayaverage = weektotal ./ averagelength
 
     # fix rows
-    sevendayaverage[madrow] = sevendayaverage[manrow] = sevendayaverage[madnrow]
-    sevendayaverage[akbrow] = sevendayaverage[akblprow]
-    sevendayaverage[akvcrow] += sevendayaverage[akcrow] + sevendayaverage[akcrrow]
-    sevendayaverage[utrichrow] = sevendayaverage[utcacherow] = sevendayaverage[utberow] = sevendayaverage[utbrrow]
-    sevendayaverage[utpirow] = sevendayaverage[utwaynerow] = sevendayaverage[utmilrow] = sevendayaverage[utsevrow] = sevendayaverage[utsevrow] =
-        sevendayaverage[utsanpeterow] = sevendayaverage[utjuabrow] = sevendayaverage[utcurow]
-    sevendayaverage[utemeryrow] = sevendayaverage[utgrandrow] = sevendayaverage[utcarbonrow] = sevendayaverage[utseurow]
-    sevendayaverage[utironrow] = sevendayaverage[utbeaverrow] = sevendayaverage[utgarfieldrow] = sevendayaverage[utwashrow] =
-        sevendayaverage[utkanerow] = sevendayaverage[utswurow]
-    sevendayaverage[utuintahrow] = sevendayaverage[utdaggrow] = sevendayaverage[utduchrow] = sevendayaverage[uttcrow]
-    sevendayaverage[utweberrow] = sevendayaverage[utmorganrow] = sevendayaverage[utwmrow]
-    mokcsplit = sevendayaverage[mokcrow] / 4
-    sevendayaverage[mojackrow] += mokcsplit
-    sevendayaverage[moclayrow] += mokcsplit
-    sevendayaverage[mocassrow] += mokcsplit
-    sevendayaverage[moplatterow] += mokcsplit
+    multidayaverage[madrow] = multidayaverage[manrow] = multidayaverage[madnrow]
+    multidayaverage[akbrow] = multidayaverage[akblprow]
+    multidayaverage[akvcrow] += multidayaverage[akcrow] + multidayaverage[akcrrow]
+    multidayaverage[utrichrow] = multidayaverage[utcacherow] = multidayaverage[utberow] = multidayaverage[utbrrow]
+    multidayaverage[utpirow] = multidayaverage[utwaynerow] = multidayaverage[utmilrow] = multidayaverage[utsevrow] = multidayaverage[utsevrow] =
+        multidayaverage[utsanpeterow] = multidayaverage[utjuabrow] = multidayaverage[utcurow]
+    multidayaverage[utemeryrow] = multidayaverage[utgrandrow] = multidayaverage[utcarbonrow] = multidayaverage[utseurow]
+    multidayaverage[utironrow] = multidayaverage[utbeaverrow] = multidayaverage[utgarfieldrow] = multidayaverage[utwashrow] =
+        multidayaverage[utkanerow] = multidayaverage[utswurow]
+    multidayaverage[utuintahrow] = multidayaverage[utdaggrow] = multidayaverage[utduchrow] = multidayaverage[uttcrow]
+    multidayaverage[utweberrow] = multidayaverage[utmorganrow] = multidayaverage[utwmrow]
+    mokcsplit = multidayaverage[mokcrow] / 4
+    multidayaverage[mojackrow] += mokcsplit
+    multidayaverage[moclayrow] += mokcsplit
+    multidayaverage[mocassrow] += mokcsplit
+    multidayaverage[moplatterow] += mokcsplit
 
     #distribute Unassigned
     for st ∈ unique(stname)
@@ -156,36 +158,34 @@ for col ∈ (12 + 7):length(countydata[1])
         stnamereduced = stname[Not(antiindexes)]
         countypops = pop2019[stnamereduced .== st]
         statepop = sum(countypops)
-        sevendayaverage[Not(union(findall(!=(st), stname), antiindexes))] .+= sevendayaverage[(stname .== st) .& (admin2 .== "Unassigned")] .* (countypops ./ statepop)
+        multidayaverage[Not(union(findall(!=(st), stname), antiindexes))] .+= multidayaverage[(stname .== st) .& (admin2 .== "Unassigned")] .* (countypops ./ statepop)
     end
     
-    deleteat!(sevendayaverage, sort!([madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow, unassignedrows...]))
+    deleteat!(multidayaverage, sort!([madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow, unassignedrows...]))
 
-    sevendayaverages = hcat(sevendayaverages, sevendayaverage)
+    multidayaverages = hcat(multidayaverages, multidayaverage)
 end
 
-sevendayaverages ./= pop2019
+multidayaverages ./= pop2019
 
 # adjust for data jumps
-sevendayaverages[stateids .== 29, 408:414] .= mean(sevendayaverages[stateids .== 29, [407, 415]], dims = 2) # Missouri jump
-sevendayaverages[stateids .== 29, 445:451] .= mean(sevendayaverages[stateids .== 29, [444, 452]], dims = 2) # Missouri jump
-sevendayaverages[stateids .== 13, 280:287] .= mean(sevendayaverages[stateids .== 13, [279, 288]], dims = 2) # Georgia jump
-sevendayaverages[findfirst(stateids .== 13) + 143, 280:292] .= mean(sevendayaverages[findfirst(stateids .== 13) + 143, [279, 293]]) # Georgia jump
-sevendayaverages[findfirst(stateids .== 15) + 2, 276:293] .= mean(sevendayaverages[findfirst(stateids .== 15) + 2, [275, 294]]) # Hawaii jump
+multidayaverages[stateids .== 29, 408:414] .= mean(multidayaverages[stateids .== 29, [407, 415]], dims = 2) # Missouri jump
+multidayaverages[stateids .== 29, 445:451] .= mean(multidayaverages[stateids .== 29, [444, 452]], dims = 2) # Missouri jump
+multidayaverages[stateids .== 13, 280:287] .= mean(multidayaverages[stateids .== 13, [279, 288]], dims = 2) # Georgia jump
+multidayaverages[findfirst(stateids .== 13) + 143, 280:292] .= mean(multidayaverages[findfirst(stateids .== 13) + 143, [279, 293]]) # Georgia jump
+multidayaverages[findfirst(stateids .== 15) + 2, 276:293] .= mean(multidayaverages[findfirst(stateids .== 15) + 2, [275, 294]]) # Hawaii jump
 txproblems = [7, 10, 29, 64, 69, 82, 86, 89, 94, 120, 128, 130, 133, 136, 143, 193, 247, 254]
-sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, 237:243] .= mean(sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, [236, 244]], dims = 2) # Texas jump
-sevendayaverages[findfirst(stateids .== 48), 234:236] .= mean(sevendayaverages[findfirst(stateids .== 48), [233, 237]]) # Texas jump
-sevendayaverages[findfirst(stateids .== 48), 241:243] .= mean(sevendayaverages[findfirst(stateids .== 48), [240, 244]]) # Texas jump
-sevendayaverages[stateids .== 48, 278:284] .= mean(sevendayaverages[stateids .== 48, [277, 285]], dims = 2) # Texas jump
+multidayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, 237:243] .= mean(multidayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, [236, 244]], dims = 2) # Texas jump
+multidayaverages[findfirst(stateids .== 48), 234:236] .= mean(multidayaverages[findfirst(stateids .== 48), [233, 237]]) # Texas jump
+multidayaverages[findfirst(stateids .== 48), 241:243] .= mean(multidayaverages[findfirst(stateids .== 48), [240, 244]]) # Texas jump
+multidayaverages[stateids .== 48, 278:284] .= mean(multidayaverages[stateids .== 48, [277, 285]], dims = 2) # Texas jump
 txproblems = [11,16,18,26,27,28,73,75,81,93,97,109,142,144,145,147,150,154,167,198,206,239]
-sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, 370:378] .= mean(sevendayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, [369, 379]], dims = 2) # Texas jump
-sevendayaverages[stateids .== 1, 400:406] .= mean(sevendayaverages[stateids .== 1, [399, 407]], dims = 2) # Alabama jump
-sevendayaverages[stateids .== 1, 412:418] .= mean(sevendayaverages[stateids .== 1, [411, 419]], dims = 2) # Alabama jump
-sevendayaverages[stateids .== 5, 397:403] .= mean(sevendayaverages[stateids .== 5, [396, 404]], dims = 2) # Arkansas jump
+multidayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, 370:378] .= mean(multidayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, [369, 379]], dims = 2) # Texas jump
+multidayaverages[stateids .== 1, 400:406] .= mean(multidayaverages[stateids .== 1, [399, 407]], dims = 2) # Alabama jump
+multidayaverages[stateids .== 1, 412:418] .= mean(multidayaverages[stateids .== 1, [411, 419]], dims = 2) # Alabama jump
+multidayaverages[stateids .== 5, 397:403] .= mean(multidayaverages[stateids .== 5, [396, 404]], dims = 2) # Arkansas jump
 
-#12-17 Tennessee
-
-sevendayaverages ./= maximum(sevendayaverages, dims = 2)
+multidayaverages ./= maximum(multidayaverages, dims = 2)
 
 
 alaskageoms = geoms[stateids .== ALASKA]
@@ -194,7 +194,7 @@ hawaiigeoms = geoms[stateids .== HAWAII]
 lower48geoms = geoms[stateids .∉ Ref([ALASKA, HAWAII, PUERTORICO])]
 
 grad = cgrad(:thermal)
-colors = map(x -> grad[x], sevendayaverages)
+colors = map(x -> grad[x], multidayaverages)
 alaskacolors = colors[stateids .== ALASKA, :]
 hawaiicolors = colors[stateids .== HAWAII, :]
 lower48colors = colors[stateids .∉ Ref([ALASKA, HAWAII, PUERTORICO]), :]
@@ -248,5 +248,5 @@ end
 for i = 1:20 # insert 20 more of the same frame at end
     Plots.frame(anim)
 end
-gif(anim, joinpath("output", "us_animation_map.gif"), fps = 7)
-mp4(anim, joinpath("output", "us_animation_map1.mp4"), fps = 7)
+gif(anim, joinpath("output", "us_animation_map1.gif"), fps = 7)
+mp4(anim, joinpath("output", "us_animation_map.mp4"), fps = 7)
