@@ -12,9 +12,57 @@ function downloadcountycasedata()
     download("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv", path)
 end
 
-
+ALABAMA = 1
 ALASKA = 2
+ARIZONA = 4
+ARKANSAS = 5
+CALIFORNIA = 6
+COLORADO = 8
+CONNECTICUT = 9
+DELAWARE = 10
+DC = 11
+FLORIDA = 12
+GEORGIA = 13
 HAWAII = 15
+IDAHO = 16
+ILLINOIS = 17
+INDIANA = 18
+IOWA = 19
+KANSAS = 20
+KENTUCKY = 21
+LOUISIANA = 22
+MAINE = 23
+MARYLAND = 24
+MASSACHUSETTS = 25
+MICHIGAN = 26
+MINNESOTA = 27
+MISSISSIPPI = 28
+MISSOURI = 29
+MONTANA = 30
+NEBRASKA = 31
+NEVADA = 32
+NEWHAMPSHIRE = 33
+NEWJERSEY = 34
+NEWMEXICO = 35
+NEWYORK = 36
+NORTHCAROLINA = 37
+NORTHDAKOTA = 38
+OHIO = 39
+OKLAHOMA = 40
+OREGON = 41
+PENNSYLVANIA = 42
+RHODEISLAND = 44
+SOUTHCAROLINA = 45
+SOUTHDAKOTA = 46
+TENNESSEE = 47
+TEXAS = 48
+UTAH = 49
+VERMONT = 50
+VIRGINIA = 51
+WASHINGTON = 53
+WESTVIRGINIA = 54
+WISCONSIN = 55
+WYOMING = 56
 PUERTORICO = 72
 
 function loadcountydata()
@@ -34,10 +82,12 @@ function loadcountydata()
     poppath = joinpath("input", "co-est2019-alldata.csv")
     popfile = CSV.File(poppath)
     notstateline = popfile.COUNTY .!= 0
+    pop_county_sorted_order = sortperm(popfile.STNAME[notstateline])
+    pop_state_county_sorted_order = sortperm(popfile.COUNTY[notstateline])
 
     selectedgeoms[county_sorted_order][state_county_sorted_order],
         selectedstates[county_sorted_order][state_county_sorted_order],
-        popfile.POPESTIMATE2019[notstateline]
+        popfile.POPESTIMATE2019[notstateline][pop_county_sorted_order][pop_state_county_sorted_order]
 end
 
 geoms, stateids, pop2019 = loadcountydata()
@@ -120,7 +170,7 @@ mocassrow = cassrows[findfirst(==("Missouri"), stname[cassrows])]
 platterows = findall(==("Platte"), admin2)
 moplatterow = platterows[findfirst(==("Missouri"), stname[platterows])]
 
-averagelength = 1
+averagelength = 7
 
 countydata = jhudata[countyrows]
 multidaysago = [r[][12] for r ∈ eachrow(countydata)]
@@ -153,6 +203,9 @@ for col ∈ (12 + averagelength):length(countydata[1])
 
     #distribute Unassigned
     for st ∈ unique(stname)
+        if st == "NEVADA" && col < 200
+            continue # Unassigned is unreliable for Nevada prior to this.
+        end
         countycount = count(stname .== st) - 1
         antiindexes = union(findall(==("Unassigned"), admin2), [madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow])
         stnamereduced = stname[Not(antiindexes)]
@@ -169,21 +222,67 @@ end
 multidayaverages ./= pop2019
 
 # adjust for data jumps
-multidayaverages[stateids .== 29, 408:414] .= mean(multidayaverages[stateids .== 29, [407, 415]], dims = 2) # Missouri jump
-multidayaverages[stateids .== 29, 445:451] .= mean(multidayaverages[stateids .== 29, [444, 452]], dims = 2) # Missouri jump
-multidayaverages[stateids .== 13, 280:287] .= mean(multidayaverages[stateids .== 13, [279, 288]], dims = 2) # Georgia jump
-multidayaverages[findfirst(stateids .== 13) + 143, 280:292] .= mean(multidayaverages[findfirst(stateids .== 13) + 143, [279, 293]]) # Georgia jump
-multidayaverages[findfirst(stateids .== 15) + 2, 276:293] .= mean(multidayaverages[findfirst(stateids .== 15) + 2, [275, 294]]) # Hawaii jump
-txproblems = [7, 10, 29, 64, 69, 82, 86, 89, 94, 120, 128, 130, 133, 136, 143, 193, 247, 254]
-multidayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, 237:243] .= mean(multidayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, [236, 244]], dims = 2) # Texas jump
-multidayaverages[findfirst(stateids .== 48), 234:236] .= mean(multidayaverages[findfirst(stateids .== 48), [233, 237]]) # Texas jump
-multidayaverages[findfirst(stateids .== 48), 241:243] .= mean(multidayaverages[findfirst(stateids .== 48), [240, 244]]) # Texas jump
-multidayaverages[stateids .== 48, 278:284] .= mean(multidayaverages[stateids .== 48, [277, 285]], dims = 2) # Texas jump
-txproblems = [11,16,18,26,27,28,73,75,81,93,97,109,142,144,145,147,150,154,167,198,206,239]
-multidayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, 370:378] .= mean(multidayaverages[findfirst(stateids .== 48) .+ txproblems .- 1, [369, 379]], dims = 2) # Texas jump
-multidayaverages[stateids .== 1, 400:406] .= mean(multidayaverages[stateids .== 1, [399, 407]], dims = 2) # Alabama jump
-multidayaverages[stateids .== 1, 412:418] .= mean(multidayaverages[stateids .== 1, [411, 419]], dims = 2) # Alabama jump
-multidayaverages[stateids .== 5, 397:403] .= mean(multidayaverages[stateids .== 5, [396, 404]], dims = 2) # Arkansas jump
+function countyfix!(multidayaverages, stateids, stateid, start, stop, counties)
+    selector = findfirst(stateids .== stateid) .+ counties .- 1
+    range = start:stop
+    multidayaverages[selector, range] .-= mean(multidayaverages[selector, range], dims = 2) .- mean(multidayaverages[selector, [start - 1, stop + 1]], dims = 2)
+end
+function statefix!(multidayaverages, stateids, stateid, start, stop)
+    selector = stateids .== stateid
+    range = start:stop
+    multidayaverages[selector, range] .-= mean(multidayaverages[selector, range], dims = 2) .- mean(multidayaverages[selector, [start - 1, stop + 1]], dims = 2)
+end
+countyfix!(multidayaverages, stateids, ALABAMA, 390, 393, [46])
+countyfix!(multidayaverages, stateids, ALABAMA, 396, 400, [46])
+countyfix!(multidayaverages, stateids, ALABAMA, 240, 246, [63])
+countyfix!(multidayaverages, stateids, ALABAMA, 269, 275, [8, 31, 34, 35])
+countyfix!(multidayaverages, stateids, ALABAMA, 268, 274, [49, 65])
+countyfix!(multidayaverages, stateids, ALABAMA, 240, 246, [17, 20, 30, 39])
+statefix!(multidayaverages, stateids, ALABAMA, 412, 418)
+countyfix!(multidayaverages, stateids, ALABAMA, 400, 406, [5, 7, 8, 15, 22, 25, 28, 36, 43, 44, 48, 58, 59, 67])
+statefix!(multidayaverages, stateids, ALABAMA, 473, 477)
+statefix!(multidayaverages, stateids, ALABAMA, 472, 478)
+statefix!(multidayaverages, stateids, ALABAMA, 471, 479)
+countyfix!(multidayaverages, stateids, ALASKA, 327, 333, [11])
+countyfix!(multidayaverages, stateids, ALASKA, 349, 355, [11])
+countyfix!(multidayaverages, stateids, ALASKA, 456, 462, [11]) # will need another for recent
+countyfix!(multidayaverages, stateids, ALASKA, 507, 518, [28])
+countyfix!(multidayaverages, stateids, ALASKA, 377, 383, [29])
+countyfix!(multidayaverages, stateids, ARIZONA, 437, 443, [4, 5, 10])
+countyfix!(multidayaverages, stateids, ARIZONA, 428, 436, [1])
+countyfix!(multidayaverages, stateids, ARIZONA, 403, 408, [1, 14])
+countyfix!(multidayaverages, stateids, ARIZONA, 402, 409, [1, 14])
+statefix!(multidayaverages, stateids, ARKANSAS, 397, 403)
+countyfix!(multidayaverages, stateids, CALIFORNIA, 519, 525, [10, 12, 16, 38, 41, 43, 45, 49, 57])
+statefix!(multidayaverages, stateids, GEORGIA, 280, 286)
+countyfix!(multidayaverages, stateids, GEORGIA, 287, 292, [143])
+countyfix!(multidayaverages, stateids, HAWAII, 276, 282, [3])
+countyfix!(multidayaverages, stateids, HAWAII, 287, 293, [3])
+countyfix!(multidayaverages, stateids, IOWA, 214, 214, [13, 15, 18, 26, 30, 41, 76, 93])
+countyfix!(multidayaverages, stateids, IOWA, 204, 210, [35, 40, 46, 59, 94, 99])
+countyfix!(multidayaverages, stateids, IOWA, 212, 218, [25, 35, 40, 46, 59, 89, 94, 99])
+countyfix!(multidayaverages, stateids, IOWA, 210, 216, [62])
+countyfix!(multidayaverages, stateids, IOWA, 526, 532, [1:4..., 11:12..., 14:17..., 21, 23, 25, 26, 30, 34:38..., 42:44..., 46:50..., 51, 52, 54, 57, 59, 60:71..., 73:77..., 79:83..., 85, 88, 91:93..., 95, 97:99...])
+countyfix!(multidayaverages, stateids, IOWA, 526, 532, [1:4...])
+countyfix!(multidayaverages, stateids, LOUISIANA, 525, 531, [13, 21, 42, 46, 62])
+statefix!(multidayaverages, stateids, MISSOURI, 408, 414)
+countyfix!(multidayaverages, stateids, MISSOURI, 422, 428, [23, 52, 56, 63, 82, 87, 97, 106])
+statefix!(multidayaverages, stateids, MISSOURI, 445, 451)
+countyfix!(multidayaverages, stateids, MONTANA, 526, 532, [38])
+countyfix!(multidayaverages, stateids, NEWHAMPSHIRE, 450, 456, [4])
+countyfix!(multidayaverages, stateids, NEBRASKA, 161, 162, [87])
+countyfix!(multidayaverages, stateids, NEBRASKA, 156, 167, [87])
+countyfix!(multidayaverages, stateids, OREGON, 140, 145, [31])
+countyfix!(multidayaverages, stateids, OREGON, 241, 247, [4])
+countyfix!(multidayaverages, stateids, SOUTHCAROLINA, 238, 244, [2, 6, 19, 35])
+countyfix!(multidayaverages, stateids, TEXAS, 237, 243, [7, 10, 29, 64, 69, 82, 86, 89, 94, 120, 128, 130, 133, 136, 143, 193, 247, 254])
+countyfix!(multidayaverages, stateids, TEXAS, 234, 236, [1])
+countyfix!(multidayaverages, stateids, TEXAS, 241, 243, [1])
+statefix!(multidayaverages, stateids, TEXAS, 278, 284)
+countyfix!(multidayaverages, stateids, TEXAS, 370, 376, [11,16,18,26,27,28,73,75,81,93,97,109,142,144,145,147,150,154,167,198,206,239])
+countyfix!(multidayaverages, stateids, WISCONSIN, 232, 232, [57:60...])
+countyfix!(multidayaverages, stateids, WISCONSIN, 239, 239, [57:60...])
+countyfix!(multidayaverages, stateids, WYOMING, 394, 400, [10])
 
 multidayaverages ./= maximum(multidayaverages, dims = 2)
 
@@ -248,5 +347,5 @@ end
 for i = 1:20 # insert 20 more of the same frame at end
     Plots.frame(anim)
 end
-gif(anim, joinpath("output", "us_animation_map1.gif"), fps = 7)
+gif(anim, joinpath("output", "us_animation_map.gif"), fps = 7)
 mp4(anim, joinpath("output", "us_animation_map.mp4"), fps = 7)
