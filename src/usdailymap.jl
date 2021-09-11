@@ -82,8 +82,8 @@ function loadcountydata()
     poppath = joinpath("input", "co-est2019-alldata.csv")
     popfile = CSV.File(poppath)
     notstateline = popfile.COUNTY .!= 0
-    pop_county_sorted_order = sortperm(popfile.STNAME[notstateline])
-    pop_state_county_sorted_order = sortperm(popfile.COUNTY[notstateline])
+    pop_county_sorted_order = sortperm(popfile.CTYNAME[notstateline])
+    pop_state_county_sorted_order = sortperm(popfile.STNAME[notstateline][pop_county_sorted_order])
 
     selectedgeoms[county_sorted_order][state_county_sorted_order],
         selectedstates[county_sorted_order][state_county_sorted_order],
@@ -203,15 +203,13 @@ for col ∈ (12 + averagelength):length(countydata[1])
 
     #distribute Unassigned
     for st ∈ unique(stname)
-        if st == "NEVADA" && col < 200
-            continue # Unassigned is unreliable for Nevada prior to this.
-        end
         countycount = count(stname .== st) - 1
         antiindexes = union(findall(==("Unassigned"), admin2), [madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow])
         stnamereduced = stname[Not(antiindexes)]
         countypops = pop2019[stnamereduced .== st]
         statepop = sum(countypops)
-        multidayaverage[Not(union(findall(!=(st), stname), antiindexes))] .+= multidayaverage[(stname .== st) .& (admin2 .== "Unassigned")] .* (countypops ./ statepop)
+        # smaller counties get disproportionately too many, so scaling with the square of the fraction of population should blunt that effect
+        multidayaverage[Not(union(findall(!=(st), stname), antiindexes))] .+= multidayaverage[(stname .== st) .& (admin2 .== "Unassigned")] .* ((countypops ./ statepop) .^ 2)
     end
     
     deleteat!(multidayaverage, sort!([madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow, unassignedrows...]))
