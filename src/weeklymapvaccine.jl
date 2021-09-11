@@ -151,7 +151,8 @@ weeks = ["march-11-2021",
          "august-5-2021",
          "august-12-2021",
          "august-19-2021",
-         "august-26-2021"]
+         "august-26-2021",
+         "september-9-2021"]
 
 labels = reverse(["*",
           "<10 %",

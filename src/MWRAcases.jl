@@ -136,7 +136,8 @@ weeks = ["august-12-2020",
         "august-12-2021",
         "august-19-2021",
         "august-26-2021",
-        "september-2-2021"]
+        "september-2-2021",
+        "september-9-2021"]
 
 mwra_towns = sort(["WILMINGTON",
                 "BEDFORD",
