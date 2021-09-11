@@ -203,13 +203,11 @@ for col ∈ (12 + averagelength):length(countydata[1])
 
     #distribute Unassigned
     for st ∈ unique(stname)
-        countycount = count(stname .== st) - 1
         antiindexes = union(findall(==("Unassigned"), admin2), [madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow])
         stnamereduced = stname[Not(antiindexes)]
         countypops = pop2019[stnamereduced .== st]
         statepop = sum(countypops)
-        # smaller counties get disproportionately too many, so scaling with the square of the fraction of population should blunt that effect
-        multidayaverage[Not(union(findall(!=(st), stname), antiindexes))] .+= multidayaverage[(stname .== st) .& (admin2 .== "Unassigned")] .* ((countypops ./ statepop) .^ 2)
+        multidayaverage[Not(union(findall(!=(st), stname), antiindexes))] .+= multidayaverage[(stname .== st) .& (admin2 .== "Unassigned")] .* (countypops ./ statepop)
     end
     
     deleteat!(multidayaverage, sort!([madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow, unassignedrows...]))
@@ -256,6 +254,11 @@ statefix!(multidayaverages, stateids, GEORGIA, 280, 286)
 countyfix!(multidayaverages, stateids, GEORGIA, 287, 292, [143])
 countyfix!(multidayaverages, stateids, HAWAII, 276, 282, [3])
 countyfix!(multidayaverages, stateids, HAWAII, 287, 293, [3])
+countyfix!(multidayaverages, stateids, IDAHO, 66, 71, [7])
+countyfix!(multidayaverages, stateids, IDAHO, 269, 275, [22])
+countyfix!(multidayaverages, stateids, IDAHO, 513, 517, [5])
+countyfix!(multidayaverages, stateids, IDAHO, 512, 518, [5])
+countyfix!(multidayaverages, stateids, IDAHO, 511, 519, [5])
 countyfix!(multidayaverages, stateids, IOWA, 214, 214, [13, 15, 18, 26, 30, 41, 76, 93])
 countyfix!(multidayaverages, stateids, IOWA, 204, 210, [35, 40, 46, 59, 94, 99])
 countyfix!(multidayaverages, stateids, IOWA, 212, 218, [25, 35, 40, 46, 59, 89, 94, 99])
@@ -274,13 +277,43 @@ countyfix!(multidayaverages, stateids, OREGON, 140, 145, [31])
 countyfix!(multidayaverages, stateids, OREGON, 241, 247, [4])
 countyfix!(multidayaverages, stateids, SOUTHCAROLINA, 238, 244, [2, 6, 19, 35])
 countyfix!(multidayaverages, stateids, TEXAS, 237, 243, [7, 10, 29, 64, 69, 82, 86, 89, 94, 120, 128, 130, 133, 136, 143, 193, 247, 254])
+countyfix!(multidayaverages, stateids, TEXAS, 321, 321, [7])
+countyfix!(multidayaverages, stateids, TEXAS, 328, 328, [7])
+countyfix!(multidayaverages, stateids, TEXAS, 415, 420, [9])
+countyfix!(multidayaverages, stateids, TEXAS, 415, 421, [17])
+countyfix!(multidayaverages, stateids, TEXAS, 407, 407, [24])
+countyfix!(multidayaverages, stateids, TEXAS, 414, 414, [24])
+countyfix!(multidayaverages, stateids, TEXAS, 415, 421, [41])
+countyfix!(multidayaverages, stateids, TEXAS, 411, 417, [48])
+countyfix!(multidayaverages, stateids, TEXAS, 407, 413, [49])
+countyfix!(multidayaverages, stateids, TEXAS, 429, 429, [138])
+countyfix!(multidayaverages, stateids, TEXAS, 436, 436, [138])
+countyfix!(multidayaverages, stateids, TEXAS, 436, 443, [138])
+countyfix!(multidayaverages, stateids, TEXAS, 436, 436, [135, 138]) # 138 must be done twice
+countyfix!(multidayaverages, stateids, TEXAS, 431, 431, [122])
+countyfix!(multidayaverages, stateids, TEXAS, 438, 438, [122])
+countyfix!(multidayaverages, stateids, TEXAS, 327, 327, [41, 48])
 countyfix!(multidayaverages, stateids, TEXAS, 234, 236, [1])
 countyfix!(multidayaverages, stateids, TEXAS, 241, 243, [1])
-statefix!(multidayaverages, stateids, TEXAS, 278, 284)
+countyfix!(multidayaverages, stateids, TEXAS, 278, 284, [1,3,5,7,8,9,10,11,12,16,17,18,19,23,24,25,26,28,30,32,33,34,35,37,41,42,45,46,47,48,49,51,52,53,54,60,61,63,65,67,72,73,74,77,79,80,81:82...,84:90...,92,93,94,96,97,98:100...,102,104,107,109,110:114...,117:119...,121,125:130...,132:134...,140:142...,144:149...,151,154,155:158...,160,163,166,169,171:187...,190,192,194,195,197:204...,207,209:215...,217:219...,221,224,225,228:232...,234,236:238...,241,244,246:250...,252,254])
+countyfix!(multidayaverages, stateids, TEXAS, 277, 283, [206])
+countyfix!(multidayaverages, stateids, TEXAS, 284, 290, [38])
 countyfix!(multidayaverages, stateids, TEXAS, 370, 376, [11,16,18,26,27,28,73,75,81,93,97,109,142,144,145,147,150,154,167,198,206,239])
+countyfix!(multidayaverages, stateids, TEXAS, 369, 375, [206])
 countyfix!(multidayaverages, stateids, WISCONSIN, 232, 232, [57:60...])
 countyfix!(multidayaverages, stateids, WISCONSIN, 239, 239, [57:60...])
 countyfix!(multidayaverages, stateids, WYOMING, 394, 400, [10])
+
+#=
+
+Texas around 3-7-21, three counties, another couple around 6-19-21
+Texas around 6-13-21
+Texas around 6-25-21 a bunch
+Texas around 5-26-21
+
+Wisconsin around 7/19/2021
+=#
+
 
 multidayaverages ./= maximum(multidayaverages, dims = 2)
 
