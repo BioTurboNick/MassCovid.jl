@@ -183,18 +183,18 @@ for col ∈ (12 + averagelength):length(countydata[1])
     multidaysago = [r[][col - averagelength + 1] for r ∈ eachrow(countydata)]
     multidayaverage = weektotal ./ averagelength
 
-    # fix rows
+    # fix rows - ideally would distribute by population
     multidayaverage[madrow] = multidayaverage[manrow] = multidayaverage[madnrow]
-    multidayaverage[akbrow] = multidayaverage[akblprow]
+    multidayaverage[akbrow] = multidayaverage[akblprow] = multidayaverage[akblprow] / 2
     multidayaverage[akvcrow] += multidayaverage[akcrow] + multidayaverage[akcrrow]
-    multidayaverage[utrichrow] = multidayaverage[utcacherow] = multidayaverage[utberow] = multidayaverage[utbrrow]
+    multidayaverage[utrichrow] = multidayaverage[utcacherow] = multidayaverage[utberow] = multidayaverage[utbrrow] / 3
     multidayaverage[utpirow] = multidayaverage[utwaynerow] = multidayaverage[utmilrow] = multidayaverage[utsevrow] = multidayaverage[utsevrow] =
-        multidayaverage[utsanpeterow] = multidayaverage[utjuabrow] = multidayaverage[utcurow]
-    multidayaverage[utemeryrow] = multidayaverage[utgrandrow] = multidayaverage[utcarbonrow] = multidayaverage[utseurow]
+        multidayaverage[utsanpeterow] = multidayaverage[utjuabrow] = multidayaverage[utcurow] / 7
+    multidayaverage[utemeryrow] = multidayaverage[utgrandrow] = multidayaverage[utcarbonrow] = multidayaverage[utseurow] / 3
     multidayaverage[utironrow] = multidayaverage[utbeaverrow] = multidayaverage[utgarfieldrow] = multidayaverage[utwashrow] =
-        multidayaverage[utkanerow] = multidayaverage[utswurow]
-    multidayaverage[utuintahrow] = multidayaverage[utdaggrow] = multidayaverage[utduchrow] = multidayaverage[uttcrow]
-    multidayaverage[utweberrow] = multidayaverage[utmorganrow] = multidayaverage[utwmrow]
+        multidayaverage[utkanerow] = multidayaverage[utswurow] / 5
+    multidayaverage[utuintahrow] = multidayaverage[utdaggrow] = multidayaverage[utduchrow] = multidayaverage[uttcrow] / 3
+    multidayaverage[utweberrow] = multidayaverage[utmorganrow] = multidayaverage[utwmrow] / 2
     mokcsplit = multidayaverage[mokcrow] / 4
     multidayaverage[mojackrow] += mokcsplit
     multidayaverage[moclayrow] += mokcsplit
@@ -353,7 +353,7 @@ countyfix!(multidayaverages, stateids, WYOMING, 395, 399, [10])
 countyfix!(multidayaverages, stateids, WYOMING, 394, 400, [10])
 
 
-multidayaverages ./= maximum(multidayaverages, dims = 2)
+multidayaverages ./= maximum(multidayaverages, dims = 2) # remove dims argument to produce map normalized to country maximum
 
 
 alaskageoms = geoms[stateids .== ALASKA]
