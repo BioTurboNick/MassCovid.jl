@@ -162,8 +162,7 @@ utmorganrow = morganrows[findfirst(==("Utah"), stname[morganrows])]
 mokcrow = findfirst(==("Kansas City"), admin2) # split between overlapping counties Jackson, Clay, Cass, Platte
 jackrows = findall(==("Jackson"), admin2)
 mojackrow = jackrows[findfirst(==("Missouri"), stname[jackrows])]
-moclayrow = findfirst(==("Clay"), admin2)
-clayrows = findall(==("Jackson"), admin2)
+clayrows = findall(==("Clay"), admin2)
 moclayrow = clayrows[findfirst(==("Missouri"), stname[clayrows])]
 cassrows = findall(==("Cass"), admin2)
 mocassrow = cassrows[findfirst(==("Missouri"), stname[cassrows])]
@@ -183,31 +182,57 @@ for col ∈ (12 + averagelength):length(countydata[1])
     multidaysago = [r[][col - averagelength + 1] for r ∈ eachrow(countydata)]
     multidayaverage = weektotal ./ averagelength
 
-    # fix rows - ideally would distribute by population
-    multidayaverage[madrow] = multidayaverage[manrow] = multidayaverage[madnrow]
-    multidayaverage[akbrow] = multidayaverage[akblprow] = multidayaverage[akblprow] / 2
-    multidayaverage[akvcrow] += multidayaverage[akcrow] + multidayaverage[akcrrow]
-    multidayaverage[utrichrow] = multidayaverage[utcacherow] = multidayaverage[utberow] = multidayaverage[utbrrow] / 3
-    multidayaverage[utpirow] = multidayaverage[utwaynerow] = multidayaverage[utmilrow] = multidayaverage[utsevrow] = multidayaverage[utsevrow] =
-        multidayaverage[utsanpeterow] = multidayaverage[utjuabrow] = multidayaverage[utcurow] / 7
-    multidayaverage[utemeryrow] = multidayaverage[utgrandrow] = multidayaverage[utcarbonrow] = multidayaverage[utseurow] / 3
-    multidayaverage[utironrow] = multidayaverage[utbeaverrow] = multidayaverage[utgarfieldrow] = multidayaverage[utwashrow] =
-        multidayaverage[utkanerow] = multidayaverage[utswurow] / 5
-    multidayaverage[utuintahrow] = multidayaverage[utdaggrow] = multidayaverage[utduchrow] = multidayaverage[uttcrow] / 3
-    multidayaverage[utweberrow] = multidayaverage[utmorganrow] = multidayaverage[utwmrow] / 2
-    mokcsplit = multidayaverage[mokcrow] / 4
-    multidayaverage[mojackrow] += mokcsplit
-    multidayaverage[moclayrow] += mokcsplit
-    multidayaverage[mocassrow] += mokcsplit
-    multidayaverage[moplatterow] += mokcsplit
-
     #distribute Unassigned
     for st ∈ unique(stname)
         antiindexes = union(findall(==("Unassigned"), admin2), [madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow])
         stnamereduced = stname[Not(antiindexes)]
+        admin2reduced = admin2[Not(antiindexes)]
         countypops = pop2019[stnamereduced .== st]
+        countynames = admin2reduced[stnamereduced .== st]
         statepop = sum(countypops)
-        multidayaverage[Not(union(findall(!=(st), stname), antiindexes))] .+= multidayaverage[(stname .== st) .& (admin2 .== "Unassigned")] .* (countypops ./ statepop)
+        countypopfrac = countypops ./ statepop
+        multidayaverage[Not(union(findall(!=(st), stname), antiindexes))] .+= multidayaverage[(stname .== st) .& (admin2 .== "Unassigned")] .* countypopfrac
+        if st == "Utah"
+            multidayaverage[utrichrow] = multidayaverage[utbrrow] * countypopfrac[findfirst(==("Rich"), countynames)]
+            multidayaverage[utcacherow] = multidayaverage[utbrrow] * countypopfrac[findfirst(==("Cache"), countynames)]
+            multidayaverage[utberow] = multidayaverage[utbrrow] * countypopfrac[findfirst(==("Box Elder"), countynames)]
+            multidayaverage[utpirow] = multidayaverage[utcurow] * countypopfrac[findfirst(==("Piute"), countynames)]
+            multidayaverage[utwaynerow] = multidayaverage[utcurow] * countypopfrac[findfirst(==("Wayne"), countynames)]
+            multidayaverage[utmilrow] = multidayaverage[utcurow] * countypopfrac[findfirst(==("Millard"), countynames)]
+            multidayaverage[utsevrow] = multidayaverage[utcurow] * countypopfrac[findfirst(==("Sevier"), countynames)]
+            multidayaverage[utsanpeterow] = multidayaverage[utcurow] * countypopfrac[findfirst(==("Box Elder"), countynames)]
+            multidayaverage[utjuabrow] = multidayaverage[utcurow] * countypopfrac[findfirst(==("Sanpete"), countynames)]
+            multidayaverage[utemeryrow] = multidayaverage[utseurow] * countypopfrac[findfirst(==("Emery"), countynames)]
+            multidayaverage[utgrandrow] = multidayaverage[utseurow] * countypopfrac[findfirst(==("Grand"), countynames)]
+            multidayaverage[utcarbonrow] = multidayaverage[utseurow] * countypopfrac[findfirst(==("Carbon"), countynames)]
+            multidayaverage[utironrow] = multidayaverage[utswurow] * countypopfrac[findfirst(==("Iron"), countynames)]
+            multidayaverage[utbeaverrow] = multidayaverage[utswurow] * countypopfrac[findfirst(==("Beaver"), countynames)]
+            multidayaverage[utgarfieldrow] = multidayaverage[utswurow] * countypopfrac[findfirst(==("Garfield"), countynames)]
+            multidayaverage[utwashrow] = multidayaverage[utswurow] * countypopfrac[findfirst(==("Washington"), countynames)]
+            multidayaverage[utkanerow] = multidayaverage[utswurow] * countypopfrac[findfirst(==("Kane"), countynames)]
+            multidayaverage[utuintahrow] = multidayaverage[uttcrow] * countypopfrac[findfirst(==("Uintah"), countynames)]
+            multidayaverage[utdaggrow] = multidayaverage[uttcrow] * countypopfrac[findfirst(==("Daggett"), countynames)]
+            multidayaverage[utduchrow] = multidayaverage[uttcrow] * countypopfrac[findfirst(==("Duchesne"), countynames)]
+            multidayaverage[utweberrow] = multidayaverage[utwmrow] * countypopfrac[findfirst(==("Weber"), countynames)]
+            multidayaverage[utmorganrow] = multidayaverage[utwmrow] * countypopfrac[findfirst(==("Morgan"), countynames)]
+        elseif st == "Alaska"
+            countynames[findfirst(==("Bristol Bay plus Lake and Peninsula"), countynames)] = "Lake and Peninsula"
+            sortorder = sortperm(countynames)
+            sort!(countynames)
+            multidayaverage[akbrow] = multidayaverage[akblprow] * countypopfrac[findfirst(==("Bristol Bay"), countynames)]
+            multidayaverage[akblprow] *= countypopfrac[findfirst(==("Lake and Peninsula"), countynames)]
+            multidayaverage[akvcrow] += multidayaverage[akcrow] + multidayaverage[akcrrow]
+            # reorder to account for Lake and Peninsula
+            multidayaverage[Not(union(findall(!=(st), stname), antiindexes))] = multidayaverage[Not(union(findall(!=(st), stname), antiindexes))][sortorder]
+        elseif st == "Massachusetts"
+            multidayaverage[madrow] = multidayaverage[madnrow] * countypopfrac[findfirst(==("Dukes"), countynames)]
+            multidayaverage[manrow] = multidayaverage[madnrow] * countypopfrac[findfirst(==("Nantucket"), countynames)]
+        elseif st == "Missouri"
+            multidayaverage[mojackrow] += multidayaverage[mokcrow] * countypopfrac[findfirst(==("Jackson"), countynames)]
+            multidayaverage[moclayrow] += multidayaverage[mokcrow] * countypopfrac[findfirst(==("Clay"), countynames)]
+            multidayaverage[mocassrow] += multidayaverage[mokcrow] * countypopfrac[findfirst(==("Cass"), countynames)]
+            multidayaverage[moplatterow] += multidayaverage[mokcrow] * countypopfrac[findfirst(==("Platte"), countynames)]
+        end
     end
     
     deleteat!(multidayaverage, sort!([madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow, unassignedrows...]))
@@ -243,9 +268,9 @@ countyfix!(multidayaverages, stateids, ALABAMA, 400, 406, [5, 7, 8, 15, 22, 25, 
 statefix!(multidayaverages, stateids, ALABAMA, 473, 477)
 statefix!(multidayaverages, stateids, ALABAMA, 472, 478)
 statefix!(multidayaverages, stateids, ALABAMA, 471, 479)
-countyfix!(multidayaverages, stateids, ALASKA, 327, 333, [11])
-countyfix!(multidayaverages, stateids, ALASKA, 349, 355, [11])
-countyfix!(multidayaverages, stateids, ALASKA, 456, 462, [11]) # will need another for recent
+countyfix!(multidayaverages, stateids, ALASKA, 327, 333, [10])
+countyfix!(multidayaverages, stateids, ALASKA, 349, 355, [10])
+countyfix!(multidayaverages, stateids, ALASKA, 456, 462, [10, 28]) # will need another for recent
 countyfix!(multidayaverages, stateids, ALASKA, 507, 518, [28])
 countyfix!(multidayaverages, stateids, ALASKA, 377, 383, [29])
 countyfix!(multidayaverages, stateids, ARIZONA, 437, 443, [4, 5, 10])
@@ -353,7 +378,8 @@ countyfix!(multidayaverages, stateids, WYOMING, 395, 399, [10])
 countyfix!(multidayaverages, stateids, WYOMING, 394, 400, [10])
 
 
-multidayaverages ./= maximum(multidayaverages, dims = 2) # remove dims argument to produce map normalized to country maximum
+multidayaverages ./= maximum(multidayaverages, dims = 2)
+#multidayaverages ./= mean(maximum(multidayaverages, dims = 2))
 
 
 alaskageoms = geoms[stateids .== ALASKA]
@@ -418,3 +444,4 @@ for i = 1:20 # insert 20 more of the same frame at end
     Plots.frame(anim)
 end
 mp4(anim, joinpath("output", "us_animation_map.mp4"), fps = 7)
+#mp4(anim, joinpath("output", "us_animation_map_absolute.mp4"), fps = 7)
