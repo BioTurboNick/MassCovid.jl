@@ -89,9 +89,11 @@ end
 
 geoms, pop2010, towns = loadtowndata()
 
-datefmt = dateformat"U-dd-yyyy"
+datefmt = dateformat"U-d-yyyy"
 weeks = [Date("august-12-2020", datefmt):Day(7):Date("october-14-2020", datefmt);
-         Date("october-22-2020", datefmt):Day(7):today()]
+         Date("october-22-2020", datefmt):Day(7):Date("november-19-2020", datefmt);
+         Date("november-27-2020", datefmt);
+         Date("december-3-2020", datefmt):Day(7):today()]
 
 mwra_towns = sort(["WILMINGTON",
                 "BEDFORD",
@@ -200,7 +202,7 @@ for w ∈ weeks
     weekstr = lowercase(Dates.format(w, datefmt))
     path = w ∈ weeks[1:22] ? downloadweeklyreport(weekstr) :
                              downloadweeklyreport2(weekstr)
-    counts, rates, ppos = loadweekdata(path, weekstr)
+    counts, rates, ppos = loadweekdata(path, w)
 
     push!(mwra_counts, sum(counts[mwra_indexes]))
     push!(mwra_north_counts, sum(counts[mwra_north_indexes]))
@@ -214,5 +216,5 @@ plot([mwra_counts mwra_north_counts mwra_south_counts other_counts] ./ 2, labels
 savefig(joinpath("output", "mwra_cases.png"))
 plot([mwra_counts mwra_north_counts mwra_south_counts other_counts][(end - 12):end,:] ./ 2, labels = ["MWRA" "MWRA South" "MWRA North" "Non-MWRA"], lw = 3, yformatter=:plain,
      xaxis=((1,length(weeks[(end - 12):end])),30), xticks=(1:2:length(weeks[(end - 12):end]), weeks[(end - 12):2:end]),
-     ylabel="New cases/week", title="Massachusetts weekly cases by MWRA service area")
+     ylabel="New cases/week", title="Massachusetts weekly cases by MWRA service area", legend=:topleft)
 savefig(joinpath("output", "mwra_cases_recent.png"))
