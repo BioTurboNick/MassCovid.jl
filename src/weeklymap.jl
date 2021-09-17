@@ -37,7 +37,15 @@ function loadweekdata(path, date)
 
         # remove "Unknown town"
         unknowntown = findfirst(x -> x ∈ ("Unknown town", "Unknown"), names)
-        isnothing(unknowntown) || popat!(daterows, unknowntown)
+        if !isnothing(unknowntown)
+            deleteat!(daterows, unknowntown)
+            deleteat!(names, unknowntown)
+        end
+        allmass = findfirst(==("All of Massachusetts"), names)
+        if !isnothing(allmass)
+            deleteat!(daterows, allmass)
+            deleteat!(names, allmass)
+        end
 
         # remove "All of Massachusetts"
         "All of Massachusetts" == names[end] && pop!(daterows)        
@@ -86,63 +94,11 @@ end
 
 geoms, pop2010 = loadtowndata()
 
-weeks = ["august-12-2020",
-         "august-19-2020",
-         "august-26-2020",
-         "september-2-2020",
-         "september-9-2020",
-         "september-16-2020",
-         "september-23-2020",
-         "september-30-2020",
-         "october-7-2020",
-         "october-14-2020",
-         "october-22-2020",
-         "october-29-2020",
-         "november-5-2020",
-         "november-12-2020",
-         "november-19-2020",
-         "november-27-2020",
-         "december-3-2020",
-         "december-10-2020",
-         "december-17-2020",
-         "december-24-2020",
-         "december-31-2020",
-         "january-7-2021",
-         "january-14-2021",
-         "january-21-2021",
-         "january-28-2021",
-         "february-4-2021",
-         "february-11-2021",
-         "february-18-2021",
-         "february-25-2021",
-         "march-4-2021",
-         "march-11-2021",
-         "march-18-2021",
-         "march-25-2021",
-         "april-1-2021",
-         "april-8-2021",
-         "april-15-2021",
-         "april-22-2021",
-         "april-29-2021",
-         "may-6-2021",
-         "may-13-2021",
-         "may-20-2021",
-         "may-27-2021",
-         "june-3-2021",
-         "june-10-2021",
-         "june-17-2021",
-         "june-24-2021",
-         "july-1-2021",
-         "july-8-2021",
-         "july-15-2021",
-         "july-22-2021",
-         "July-29-2021",
-         "august-5-2021",
-         "august-12-2021",
-         "august-19-2021",
-         "august-26-2021",
-         "september-2-2021",
-         "september-9-2021"]
+datefmt = dateformat"U-d-yyyy"
+weeks = [Date("august-12-2020", datefmt):Day(7):Date("october-14-2020", datefmt);
+         Date("october-22-2020", datefmt):Day(7):Date("november-19-2020", datefmt);
+         Date("november-27-2020", datefmt);
+         Date("december-3-2020", datefmt):Day(7):today()]
 
 labels = ["0 total",
           "<5 total",
@@ -202,22 +158,22 @@ categorycounts = []
 pposcategorycounts = []
 
 for w ∈ weeks
-    path = w ∈ weeks[1:22] ? downloadweeklyreport(w) :
-                             downloadweeklyreport2(w)
-    date = Date(w, DateFormat("U-d-y"))
-    counts, rates, ppos = loadweekdata(path, date)
+    weekstr = lowercase(Dates.format(w, datefmt))
+    path = w ∈ weeks[1:22] ? downloadweeklyreport(weekstr) :
+                             downloadweeklyreport2(weekstr)
+    counts, rates, ppos = loadweekdata(path, w)
     risklevel = calculaterisklevels(counts, rates)
     ndims(risklevel) == 1 || (risklevel = dropdims(risklevel, dims = 2))
 
     colors = [riskcolors[r] for r ∈ risklevel] |> permutedims
-    push!(ratemaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Risk Level\n$(date)", labels=labels))
-    savefig(joinpath("output", "$(w).png"))
+    push!(ratemaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Risk Level\n$(w)", labels=labels))
+    savefig(joinpath("output", "$(weekstr).png"))
 
     pposrisklevel = calculatepposrisklevels(counts, ppos)
     ndims(pposrisklevel) == 1 || (pposrisklevel = dropdims(pposrisklevel, dims = 2))
     colors = [pposriskcolors[r] for r ∈ pposrisklevel] |> permutedims
-    push!(pposmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Percent Positivity Risk Level\n$(date)", labels=labels))
-    savefig(joinpath("output", "$(w)-percent-positive.png"))
+    push!(pposmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Percent Positivity Risk Level\n$(w)", labels=labels))
+    savefig(joinpath("output", "$(weekstr)-percent-positive.png"))
 
     # calculate weighted categories and append them
     weightedcategorycounts = AbstractFloat[]
@@ -236,14 +192,12 @@ for w ∈ weeks
     pposcategorycounts = isempty(pposcategorycounts) ? pposweightedcategorycounts : [pposcategorycounts; pposweightedcategorycounts]
 end
 
-dates = Date.(weeks, DateFormat("U-d-y"))
-
 # State Animation
 anim = Plots.Animation()
 for i ∈ eachindex(weeks)
     plot(ratemaps[i])
     areaplot!(categorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
-                     xaxis=((1,length(weeks)),30), xticks=(1:3:length(dates), dates[1:3:end]),
+                     xaxis=((1,length(weeks)),30), xticks=(1:3:length(weeks), weeks[1:3:end]),
                      yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
                      tick_direction=:in,
                      inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
@@ -260,7 +214,7 @@ anim = Plots.Animation()
 for i ∈ eachindex(weeks)
     plot(pposmaps[i])
     areaplot!(pposcategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(pposriskcolors)))), linewidth=0, widen=false,
-                     xaxis=((1,length(weeks)),30), xticks=(1:3:length(dates), dates[1:3:end]),
+                     xaxis=((1,length(weeks)),30), xticks=(1:3:length(weeks), weeks[1:3:end]),
                      yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
                      tick_direction=:in,
                      inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,

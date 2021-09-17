@@ -127,33 +127,8 @@ end
 
 geoms, pop2010 = loadtowndata()
 
-weeks = ["march-11-2021",
-         "march-18-2021",
-         "march-25-2021",
-         "april-1-2021",
-         "april-8-2021",
-         "april-15-2021",
-         "april-22-2021",
-         "april-29-2021",
-         "may-6-2021",
-         "may-13-2021",
-         "may-20-2021",
-         "may-27-2021",
-         "june-3-2021",
-         "june-10-2021",
-         "june-17-2021",
-         "june-24-2021",
-         "july-1-2021",
-         "july-8-2021",
-         "july-15-2021",
-         "july-22-2021",
-         "july-29-2021",
-         "august-5-2021",
-         "august-12-2021",
-         "august-19-2021",
-         "august-26-2021",
-         "september-9-2021",
-         "september-2-2021"]
+datefmt = dateformat"U-d-yyyy"
+weeks = Date("march-11-2021", datefmt):Day(7):today()
 
 labels = reverse(["*",
           "<10 %",
@@ -189,22 +164,22 @@ for i = 1:7 # age categories
     fullcategorycounts = []
 
     for w ∈ weeks
-        path = downloadweeklyreport(w)
+        weekstr = lowercase(Dates.format(w, datefmt))
+        path = downloadweeklyreport(weekstr)
         onepluspercent, fullpercent = loadweekdata(path)
-        date = Date(w, DateFormat("U-d-y"))
 
         oneplusrisklevel = calculaterisklevels(onepluspercent)[:, i]
         ndims(oneplusrisklevel) == 1 || (oneplusrisklevel = dropdims(oneplusrisklevel, dims = 2))
 
         colors = [riskcolors[r] for r ∈ oneplusrisklevel] |> permutedims
-        push!(oneplusmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Vaccination Level (At Least One; $(agecat[i]))\n$(date)", labels=labels))
-        savefig(joinpath("output", "$(w)-vaccine-oneplus_$(agecat[i]).png"))
+        push!(oneplusmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Vaccination Level (At Least One; $(agecat[i]))\n$(w)", labels=labels))
+        savefig(joinpath("output", "$(weekstr)-vaccine-oneplus_$(agecat[i]).png"))
 
         fullrisklevel = calculaterisklevels(fullpercent)[:, i]
         ndims(fullrisklevel) == 1 || (fullrisklevel = dropdims(fullrisklevel, dims = 2))
         colors = [riskcolors[r] for r ∈ fullrisklevel] |> permutedims
-        push!(fullmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Vaccination Level (Full; $(agecat[i]))\n$(date)", labels=labels))
-        savefig(joinpath("output", "$(w)-vaccine-full_$(agecat[i]).png"))
+        push!(fullmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Vaccination Level (Full; $(agecat[i]))\n$(w)", labels=labels))
+        savefig(joinpath("output", "$(weekstr)-vaccine-full_$(agecat[i]).png"))
 
         # calculate weighted categories and append them
         weightedcategorycounts = AbstractFloat[]
@@ -223,14 +198,12 @@ for i = 1:7 # age categories
         fullcategorycounts = isempty(fullcategorycounts) ? fullweightedcategorycounts : [fullcategorycounts; fullweightedcategorycounts]
     end
 
-    dates = Date.(weeks, DateFormat("U-d-y"))
-
     # State Animation
     anim = Plots.Animation()
     for i ∈ eachindex(weeks)
         plot(oneplusmaps[i])
         areaplot!(onepluscategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
-                        xaxis=((1,length(weeks)),30), xticks=(1:2:length(dates), dates[1:2:end]),
+                        xaxis=((1,length(weeks)),30), xticks=(1:2:length(weeks), weeks[1:2:end]),
                         yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
                         tick_direction=:in,
                         inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
@@ -247,7 +220,7 @@ for i = 1:7 # age categories
     for i ∈ eachindex(weeks)
         plot(fullmaps[i])
         areaplot!(fullcategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
-                        xaxis=((1,length(weeks)),30), xticks=(1:2:length(dates), dates[1:2:end]),
+                        xaxis=((1,length(weeks)),30), xticks=(1:2:length(weeks), weeks[1:2:end]),
                         yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
                         tick_direction=:in,
                         inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
