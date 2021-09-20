@@ -298,8 +298,8 @@ function fixspikes!(data, series)
     
     statefix!(data, series, "Arkansas", 206)
     countyfix!(data, series, "Arkansas", 386, [71])
-    statefix!(data, series, "Arkansas", 403)
-    statefix!(data, series, "Arkansas", 404)
+    statefix!(data, series, "Arkansas", 403, 404)
+    statefix!(data, series, "Arkansas", 428)
 
     statefix!(data, series, "California", 307)
     countyfix!(data, series, "California", 315, [28])
