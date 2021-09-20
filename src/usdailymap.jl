@@ -10,11 +10,6 @@ using Statistics
 using InvertedIndices
 using Unicode
 
-function downloadcountycasedata()
-    path = joinpath("input", "time_series_covid19_confirmed_US.csv")
-    download("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv", path)
-end
-
 statefp_name_dict = Dict(
     1 => "Alabama",
     2 => "Alaska",
@@ -69,6 +64,11 @@ statefp_name_dict = Dict(
     56 => "Wyoming",
     72 => "Puerto Rico"
 )
+
+function downloadcountycasedata()
+    path = joinpath("input", "time_series_covid19_confirmed_US.csv")
+    download("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv", path)
+end
 
 function loadcountydata()
     jhudata = CSV.read(downloadcountycasedata(), DataFrame)
@@ -229,22 +229,6 @@ function preparedata!(data, datarange)
     return nothing
 end
 
-function extractseries(data, datarange)
-
-end
-
-
-    # convert from cumulative to day-to-day changes
-    for row ∈ eachrow(data[!, datarange])
-        row[2:end] .= diff(collect(row))
-    end
-
-function normalizedata!(data, datarange)
-    for row ∈ eachrow(data[!, datarange])
-        row .= sma(collect(row), 7, true)
-    end
-end
-
 data = loadcountydata()
 colnames = propertynames(data)
 datarange = findfirst(==(Symbol("1/22/20")), colnames):findfirst(==(:SUMLEV), colnames) - 1
@@ -284,7 +268,44 @@ function fixspikes!(data, series)
     countyfix!(data, series, "Alabama", 454, [49])
     countyfix!(data, series, "Alabama", 470, [44, 59])
     statefix!(data, series, "Alabama", 478)
-    statefix!(data, series, "Alabama", 479)
+    countyfix!(data, series, "Alabama", 477, [10])
+
+    countyfix!(data, series, "Alaska", 180, [2, 6, 11])
+    countyfix!(data, series, "Alaska", 318, [10])
+    statefix!(data, series, "Alaska", 346)
+    countyfix!(data, series, "Alaska", 349, [23, 29])
+    countyfix!(data, series, "Alaska", 355, [29])
+    countyfix!(data, series, "Alaska", 462, [23])
+    countyfix!(data, series, "Alaska", 478, [27])
+    countyfix!(data, series, "Alaska", 513, [27])
+    countyfix!(data, series, "Alaska", 518, [24, 27])
+
+    statefix!(data, series, "Arizona", 216)
+    countyfix!(data, series, "Arizona", 216, 217, [13])
+    countyfix!(data, series, "Arizona", 218, [12])
+    countyfix!(data, series, "Arizona", 328, [15])
+    countyfix!(data, series, "Arizona", 327, 328, [15])
+    countyfix!(data, series, "Arizona", 409, [15])
+    countyfix!(data, series, "Arizona", 408, [1, 10, 14])
+    countyfix!(data, series, "Arizona", 409, [14])
+    countyfix!(data, series, "Arizona", 409, 410, [7])
+    countyfix!(data, series, "Arizona", 413, [10])
+    countyfix!(data, series, "Arizona", 415, [10])
+    statefix!(data, series, "Arizona", 421)
+    statefix!(data, series, "Arizona", 423)
+    statefix!(data, series, "Arizona", 434)
+    countyfix!(data, series, "Arizona", 443, [2, 4, 5, 10])
+    
+    statefix!(data, series, "Arkansas", 206)
+    countyfix!(data, series, "Arkansas", 386, [71])
+    statefix!(data, series, "Arkansas", 403)
+    statefix!(data, series, "Arkansas", 404)
+
+    statefix!(data, series, "California", 307)
+    countyfix!(data, series, "California", 315, [28])
+    statefix!(data, series, "California", 343, 344)
+    statefix!(data, series, "California", 524)
+    statefix!(data, series, "California", 536)
 end
 
 seriesavg = hcat(sma.(eachrow(series), 7)...)
@@ -296,32 +317,22 @@ seriesavg ./= maximum(seriesavg, dims = 1)
 # adjust for data jumps
 function countyfix!(data, series, statename, dayindex, counties)
     selector = selectstatecounties(data, statename)[counties]
-    series[selector, dayindex] .-= mean(series[selector, dayindex], dims = 2) .- mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
+    series[selector, [dayindex;]] .= mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
 end
 function countyfix!(data, series, statename, startindex, stopindex, counties)
     selector = selectstatecounties(data, statename)[counties]
     range = startindex:stopindex
-    series[selector, range] .-= mean(series[selector, range], dims = 2) .- mean(series[selector, [startindex - 1, stopindex + 1]], dims = 2)
+    series[selector, range] .= mean(series[selector, [startindex - 1, stopindex + 1]], dims = 2)
 end
 function statefix!(data, series, statename, start, stop)
     selector = selectstatecounties(data, statename)
     range = start:stop
-    series[selector, range] .-= mean(series[selector, range], dims = 2) .- mean(series[selector, [start - 1, stop + 1]], dims = 2)
+    series[selector, range] .= mean(series[selector, [start - 1, stop + 1]], dims = 2)
 end
 function statefix!(data, series, statename, dayindex)
     selector = selectstatecounties(data, statename)
-    series[selector, dayindex] .-= mean(series[selector, dayindex], dims = 2) .- mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
+    series[selector, [dayindex;]] .= mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
 end
-countyfix!(multidayaverages, stateids, ALASKA, 327, 333, [10])
-countyfix!(multidayaverages, stateids, ALASKA, 349, 355, [10])
-countyfix!(multidayaverages, stateids, ALASKA, 456, 462, [10, 28]) # will need another for recent
-countyfix!(multidayaverages, stateids, ALASKA, 507, 518, [28])
-countyfix!(multidayaverages, stateids, ALASKA, 377, 383, [29])
-countyfix!(multidayaverages, stateids, ARIZONA, 437, 443, [4, 5, 10])
-countyfix!(multidayaverages, stateids, ARIZONA, 428, 436, [1])
-countyfix!(multidayaverages, stateids, ARIZONA, 403, 408, [1, 14])
-countyfix!(multidayaverages, stateids, ARIZONA, 402, 409, [1, 14])
-statefix!(multidayaverages, stateids, ARKANSAS, 397, 403)
 countyfix!(multidayaverages, stateids, CALIFORNIA, 519, 525, [10, 12, 16, 38, 41, 43, 45, 49, 57])
 countyfix!(multidayaverages, stateids, CALIFORNIA, 305, 305, [23])
 countyfix!(multidayaverages, stateids, CALIFORNIA, 312, 312, [23])
