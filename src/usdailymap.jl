@@ -1,273 +1,317 @@
+using DataFrames
 using Dates
 using Shapefile
 using Plots
 using XLSX
 using CSV
 using Missings
+using Smoothers
 using Statistics
 using InvertedIndices
+using Unicode
 
 function downloadcountycasedata()
     path = joinpath("input", "time_series_covid19_confirmed_US.csv")
     download("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv", path)
 end
 
-ALABAMA = 1
-ALASKA = 2
-ARIZONA = 4
-ARKANSAS = 5
-CALIFORNIA = 6
-COLORADO = 8
-CONNECTICUT = 9
-DELAWARE = 10
-DC = 11
-FLORIDA = 12
-GEORGIA = 13
-HAWAII = 15
-IDAHO = 16
-ILLINOIS = 17
-INDIANA = 18
-IOWA = 19
-KANSAS = 20
-KENTUCKY = 21
-LOUISIANA = 22
-MAINE = 23
-MARYLAND = 24
-MASSACHUSETTS = 25
-MICHIGAN = 26
-MINNESOTA = 27
-MISSISSIPPI = 28
-MISSOURI = 29
-MONTANA = 30
-NEBRASKA = 31
-NEVADA = 32
-NEWHAMPSHIRE = 33
-NEWJERSEY = 34
-NEWMEXICO = 35
-NEWYORK = 36
-NORTHCAROLINA = 37
-NORTHDAKOTA = 38
-OHIO = 39
-OKLAHOMA = 40
-OREGON = 41
-PENNSYLVANIA = 42
-RHODEISLAND = 44
-SOUTHCAROLINA = 45
-SOUTHDAKOTA = 46
-TENNESSEE = 47
-TEXAS = 48
-UTAH = 49
-VERMONT = 50
-VIRGINIA = 51
-WASHINGTON = 53
-WESTVIRGINIA = 54
-WISCONSIN = 55
-WYOMING = 56
-PUERTORICO = 72
+statefp_name_dict = Dict(
+    1 => "Alabama",
+    2 => "Alaska",
+    4 => "Arizona",
+    5 => "Arkansas",
+    6 => "California",
+    8 => "Colorado",
+    9 => "Connecticut",
+    10 => "Delaware",
+    11 => "District of Columbia",
+    12 => "Florida",
+    13 => "Georgia",
+    15 => "Hawaii",
+    16 => "Idaho",
+    17 => "Illinois",
+    18 => "Indiana",
+    19 => "Iowa",
+    20 => "Kansas",
+    21 => "Kentucky",
+    22 => "Louisiana",
+    23 => "Maine",
+    24 => "Maryland",
+    25 => "Massachusetts",
+    26 => "Michigan",
+    27 => "Minnesota",
+    28 => "Mississippi",
+    29 => "Missouri",
+    30 => "Montana",
+    31 => "Nebraska",
+    32 => "Nevada",
+    33 => "New Hampshire",
+    34 => "New Jersey",
+    35 => "New Mexico",
+    36 => "New York",
+    37 => "North Carolina",
+    38 => "North Dakota",
+    39 => "Ohio",
+    40 => "Oklahoma",
+    41 => "Oregon",
+    42 => "Pennsylvania",
+    44 => "Rhode Island",
+    45 => "South Carolina",
+    46 => "South Dakota",
+    47 => "Tennessee",
+    48 => "Texas",
+    49 => "Utah",
+    50 => "Vermont",
+    51 => "Virginia",
+    53 => "Washington",
+    54 => "West Virginia",
+    55 => "Wisconsin",
+    56 => "Wyoming",
+    72 => "Puerto Rico"
+)
 
 function loadcountydata()
-    # 3, 14, 43, 52, 57 are nothing
-    # States between 1 and 56
-    shapepath = joinpath("usgeodata", "cb_2018_us_county_5m.shp")
-    table = Shapefile.Table(shapepath)
-    geoms = Shapefile.shapes(table)
-    stateids = parse.(Int, table.STATEFP)
-    states = (stateids .< 57) #.| (stateids .== PUERTORICO)
-    selectedstates = stateids[states]
-    selectedgeoms = geoms[states]
+    jhudata = CSV.read(downloadcountycasedata(), DataFrame)
+    admin2 = Missings.replace(jhudata[!, :Admin2], "")
 
-    county_sorted_order = sortperm(table.NAME[states])
-    state_county_sorted_order = sortperm(selectedstates[county_sorted_order])
-    
     poppath = joinpath("input", "co-est2019-alldata.csv")
-    popfile = CSV.File(poppath)
-    notstateline = popfile.COUNTY .!= 0
-    pop_county_sorted_order = sortperm(popfile.CTYNAME[notstateline])
-    pop_state_county_sorted_order = sortperm(popfile.STNAME[notstateline][pop_county_sorted_order])
+    popdata = CSV.read(poppath, DataFrame)
+    popdata[popdata[!, :CTYNAME] .== "Do\xf1a Ana County", :CTYNAME] .= "Dona Ana County"
+    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " County" => "") # trim suffixes
+    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " Census Area" => "")
+    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " Borough" => "")
+    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " Parish" => "")
+    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " City and" => "")
+    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " Municipality" => "")
+    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " city" => " City")
+    # deal with "City" suffix
+    cityrows = findall(endswith.(popdata[!,:CTYNAME], " City"))
+    citynames = popdata[cityrows, :CTYNAME]
+    citynamesappend = deepcopy(citynames)
+    citynames[endswith.(citynames, " City")] .= replace.(citynames[endswith.(citynames, " City")], " City" => "")
+    citynamesappend[.!endswith.(citynamesappend, " City")] = citynamesappend[.!endswith.(citynamesappend, " City")] .* " City"
+    popdata[cityrows[citynamesappend .∈ Ref(admin2)], :CTYNAME] .= citynamesappend[citynamesappend .∈ Ref(admin2)]
+    popdata[cityrows[citynamesappend .∉ Ref(admin2)], :CTYNAME] .= citynames[citynamesappend .∉ Ref(admin2)]
+    data = outerjoin(jhudata, popdata, on = [:Province_State => :STNAME, :Admin2 => :CTYNAME], matchmissing = :equal)
 
-    selectedgeoms[county_sorted_order][state_county_sorted_order],
-        selectedstates[county_sorted_order][state_county_sorted_order],
-        popfile.POPESTIMATE2019[notstateline][pop_county_sorted_order][pop_state_county_sorted_order]
+    shapepath = joinpath("usgeodata", "cb_2018_us_county_5m.shp")
+    shpdata = DataFrame(Shapefile.Table(shapepath))
+    shpdata[!, :NAME] .= Unicode.normalize.(shpdata[!, :NAME], stripmark = true)
+    # deal with "City" suffix
+    cityrows = findall(parse.(Int, shpdata[!, :COUNTYFP]) .>= 500)
+    citynames = shpdata[cityrows, :NAME]
+    citynamesappend = deepcopy(citynames)
+    citynames[endswith.(citynames, " City")] .= replace.(citynames[endswith.(citynames, " City")], " City" => "")
+    citynamesappend[.!endswith.(citynamesappend, " City")] = citynamesappend[.!endswith.(citynamesappend, " City")] .* " City"
+    shpdata[cityrows[citynamesappend .∈ Ref(admin2)], :NAME] .= citynamesappend[citynamesappend .∈ Ref(admin2)]
+    shpdata[cityrows[citynamesappend .∉ Ref(admin2)], :NAME] .= citynames[citynamesappend .∉ Ref(admin2)]
+    shpdata[!, :STNAME] .= [haskey(statefp_name_dict, x) ? statefp_name_dict[x] : missing for x ∈ parse.(Int, shpdata[!, :STATEFP])]
+
+    data = outerjoin(data, shpdata, on = [:Province_State => :STNAME, :Admin2 => :NAME], matchmissing = :equal)
+    return data
 end
 
-geoms, stateids, pop2019 = loadcountydata()
+selectcounty(data, statename, countyname) =
+    findall((data[!, :Province_State] .== statename) .& (Missings.replace(data[!, :COUNTY], -1) .!= 0) .& (data[!, :Admin2] .== countyname))
 
-jhudata = CSV.File(downloadcountycasedata())
+selectcounties(data, statename, countynames) =
+    findall((data[!, :Province_State] .== statename) .& (Missings.replace(data[!, :COUNTY], -1) .!= 0) .& (data[!, :Admin2] .∈ Ref(countynames)))
 
-outofrows = startswith.(Missings.replace(jhudata.Admin2, ""), "Out of")
+selectstate(data, statename) =
+    findall((data[!, :Province_State] .== statename) .& (Missings.replace(data[!, :COUNTY], -1) .== 0) .& (data[!, :Admin2] .== statename))
 
-territoryrows = ismissing.(jhudata.Admin2)
-prrows = jhudata.Province_State .== "Puerto Rico"
-correctionsrows = contains.(Missings.replace(jhudata.Admin2, ""), "Correct")
+selectstatecounties(data, statename) =
+    findall((data[!, :Province_State] .== statename) .& (Missings.replace(data[!, :COUNTY], -1) .!= 0))
 
-countyrows = .!(outofrows .| territoryrows .| correctionsrows .| prrows)
+getstatepop(data, statename) =
+    data[selectstate(data, statename), :POPESTIMATE2019] |> only
 
-# Also check for anomalious maximums and remove them.
+getcountypop(data, statename, countyname) =
+    data[selectcounty(data, statename, countyname), :POPESTIMATE2019] |> only
 
-admin2 = Missings.replace(jhudata.Admin2[countyrows], "")
-unassignedrows = findall(==("Unassigned"), admin2)
-stname = Missings.replace(jhudata.Province_State[countyrows], "")
-# Massachusetts remapping
-madnrow = findfirst(==("Dukes and Nantucket"), admin2) # two counties
-madrow = findfirst(==("Dukes"), admin2) # unused
-manrow = findfirst(==("Nantucket"), admin2) #unused
+addcountycases!(data, statename, destcountyname, sourceselector, statepop, datarange) =
+    data[selectcounty(data, statename, destcountyname), datarange] .= 
+        data[selectcounty(data, statename, destcountyname), datarange] .+
+        round.(data[sourceselector, datarange] .* getcountypop(data, statename, destcountyname) ./ statepop)
 
-# Alaska remapping
-akblprow = findfirst(==("Bristol Bay plus Lake and Peninsula"), admin2) # two counties
-akbrow = findfirst(==("Bristol Bay"), admin2) # unused
-akcrow = findfirst(==("Chugach"), admin2) # part of Valez-Cordova
-akcrrow = findfirst(==("Copper River"), admin2) # part of Valez-Cordova
-akvcrow = findfirst(==("Valdez-Cordova"), admin2) # unused
+function preparedata!(data, datarange)
+    # The JHU dataset combines some counties. We need to reassign the data to the actual counties.
+    
+    # Remove island territories and corrections
+    filter!(:Province_State => !ismissing, data)
+    filter!(:Admin2 => !ismissing, data)
+    filter!(:Admin2 => x -> !contains(x, "Correct"), data)
 
-# Utah remapping
-utbrrow = findfirst(==("Bear River"), admin2) # Rich, Cache, Box Elder
-utrichrow = findfirst(==("Rich"), admin2)
-utcacherow = findfirst(==("Cache"), admin2)
-utberow = findfirst(==("Box Elder"), admin2)
-utcurow = findfirst(==("Central Utah"), admin2) # Piute, Wayne, Millard, Sevier, Sanpete, Juab
-utpirow = findfirst(==("Piute"), admin2)
-waynerows = findall(==("Wayne"), admin2)
-utwaynerow = waynerows[findfirst(==("Utah"), stname[waynerows])]
-utmilrow = findfirst(==("Millard"), admin2)
-sevrows = findall(==("Sevier"), admin2)
-utsevrow = sevrows[findfirst(==("Utah"), stname[sevrows])]
-utsanpeterow = findfirst(==("Sanpete"), admin2)
-utjuabrow = findfirst(==("Juab"), admin2)
-utseurow = findfirst(==("Southeast Utah"), admin2) # Emery, Grand, Carbon
-utemeryrow = findfirst(==("Emery"), admin2)
-grandrows = findall(==("Grand"), admin2)
-utgrandrow = grandrows[findfirst(==("Utah"), stname[grandrows])]
-carbonrows = findall(==("Carbon"), admin2)
-utcarbonrow = carbonrows[findfirst(==("Utah"), stname[carbonrows])]
-utswurow = findfirst(==("Southwest Utah"), admin2) # Iron, Beaver, Garfield, Washington, Kane
-ironrows = findall(==("Iron"), admin2)
-utironrow = ironrows[findfirst(==("Utah"), stname[ironrows])] # multiple counties with the same name
-beaverrows = findall(==("Beaver"), admin2)
-utbeaverrow = beaverrows[findfirst(==("Utah"), stname[beaverrows])]
-garfieldrows = findall(==("Garfield"), admin2)
-utgarfieldrow = garfieldrows[findfirst(==("Utah"), stname[garfieldrows])]
-washrows = findall(==("Washington"), admin2)
-utwashrow = washrows[findfirst(==("Utah"), stname[washrows])]
-kanerows = findall(==("Kane"), admin2)
-utkanerow = kanerows[findfirst(==("Utah"), stname[kanerows])]
-uttcrow = findfirst(==("TriCounty"), admin2) # Uintah, Daggett, Duchesne
-utuintahrow = findfirst(==("Uintah"), admin2)
-utdaggrow = findfirst(==("Daggett"), admin2)
-utduchrow = findfirst(==("Duchesne"), admin2)
-utwmrow = findfirst(==("Weber-Morgan"), admin2) # Weber, Morgan
-utweberrow = findfirst(==("Weber"), admin2)
-morganrows = findall(==("Morgan"), admin2)
-utmorganrow = morganrows[findfirst(==("Utah"), stname[morganrows])]
+    # set missings to 0
+    for row ∈ eachrow(data[!, datarange])
+        row .= collect(Missings.replace(row, 0))
+    end
 
-mokcrow = findfirst(==("Kansas City"), admin2) # split between overlapping counties Jackson, Clay, Cass, Platte
-jackrows = findall(==("Jackson"), admin2)
-mojackrow = jackrows[findfirst(==("Missouri"), stname[jackrows])]
-clayrows = findall(==("Clay"), admin2)
-moclayrow = clayrows[findfirst(==("Missouri"), stname[clayrows])]
-cassrows = findall(==("Cass"), admin2)
-mocassrow = cassrows[findfirst(==("Missouri"), stname[cassrows])]
-platterows = findall(==("Platte"), admin2)
-moplatterow = platterows[findfirst(==("Missouri"), stname[platterows])]
+    # Alaska
+    akpop = getstatepop(data, "Alaska")
+    data[selectcounty(data, "Alaska", "Valdez-Cordova"), datarange] .+=
+        data[selectcounty(data, "Alaska", "Chugach"), datarange] .+
+        data[selectcounty(data, "Alaska", "Copper River"), datarange]
+    akbblprow = selectcounty(data, "Alaska", "Bristol Bay plus Lake and Peninsula") # Bristol Bay, Lake and Peninsula
+    addcountycases!(data, "Alaska", "Bristol Bay", akbblprow, akpop, datarange)
+    addcountycases!(data, "Alaska", "Lake and Peninsula", akbblprow, akpop, datarange)
+    delete!(data, selectcounties(data, "Alaska", ["Bristol Bay plus Lake and Peninsula", "Chugach", "Copper River"]))
 
-averagelength = 7
+    # Massachusetts
+    mapop = getstatepop(data, "Massachusetts")
+    madnrow = selectcounty(data, "Massachusetts", "Dukes and Nantucket") # Dukes, Nantucket
+    addcountycases!(data, "Massachusetts", "Dukes", madnrow, mapop, datarange)
+    addcountycases!(data, "Massachusetts", "Nantucket", madnrow, mapop, datarange)
+    delete!(data, madnrow)
 
-countydata = jhudata[countyrows]
-multidaysago = [r[][12] for r ∈ eachrow(countydata)]
+    # Missouri
+    mopop = getstatepop(data, "Missouri")
+    mokcrow = selectcounty(data, "Missouri", "Kansas City") # split between overlapping counties Jackson, Clay, Cass, Platte
+    addcountycases!(data, "Missouri", "Jackson", mokcrow, mopop, datarange)
+    addcountycases!(data, "Missouri", "Clay", mokcrow, mopop, datarange)
+    addcountycases!(data, "Missouri", "Cass", mokcrow, mopop, datarange)
+    addcountycases!(data, "Missouri", "Platte", mokcrow, mopop, datarange)
+    delete!(data, mokcrow)
 
-multidayaverages = fill(0, length(geoms), 0)
+    # Utah
+    utpop = getstatepop(data, "Utah")
+    utbearriverrow = selectcounty(data, "Utah", "Bear River") # Rich, Cache, Box Elder
+    addcountycases!(data, "Utah", "Rich", utbearriverrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Cache", utbearriverrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Box Elder", utbearriverrow, utpop, datarange)
+    utcentralrow = selectcounty(data, "Utah", "Central Utah") # Piute, Wayne, Millard, Sevier, Sanpete, Juab
+    addcountycases!(data, "Utah", "Piute", utcentralrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Wayne", utcentralrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Millard", utcentralrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Sevier", utcentralrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Sanpete", utcentralrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Juab", utcentralrow, utpop, datarange)
+    utsoutheastrow = selectcounty(data, "Utah", "Southeast Utah") # Emery, Grand, Carbon
+    addcountycases!(data, "Utah", "Emery", utsoutheastrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Grand", utsoutheastrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Carbon", utsoutheastrow, utpop, datarange)
+    utsouthwestrow = selectcounty(data, "Utah", "Southwest Utah") # Iron, Beaver, Garfield, Washington, Kane
+    addcountycases!(data, "Utah", "Iron", utsouthwestrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Beaver", utsouthwestrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Garfield", utsouthwestrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Washington", utsouthwestrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Kane", utsouthwestrow, utpop, datarange)
+    uttricountyrow = selectcounty(data, "Utah", "TriCounty") # Uintah, Daggett, Duchesne
+    addcountycases!(data, "Utah", "Uintah", uttricountyrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Daggett", uttricountyrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Duchesne", uttricountyrow, utpop, datarange)
+    utwebermorganrow = selectcounty(data, "Utah", "Weber-Morgan") # Weber, Morgan
+    addcountycases!(data, "Utah", "Weber", utwebermorganrow, utpop, datarange)
+    addcountycases!(data, "Utah", "Morgan", utwebermorganrow, utpop, datarange)
+    delete!(data, selectcounties(data, "Utah", ["Bear River", "Central Utah", "Southeast Utah", "Southwest Utah", "TriCounty", "Weber-Morgan"]))
 
-for col ∈ (12 + averagelength):length(countydata[1])
-    today = [r[][col] for r ∈ eachrow(countydata)]
-    weektotal = today .- multidaysago
-    multidaysago = [r[][col - averagelength + 1] for r ∈ eachrow(countydata)]
-    multidayaverage = weektotal ./ averagelength
+    # remove "Out of" rows which have no data
+    filter!(:Admin2 => x -> !startswith(x, "Out of"), data)
 
-    #distribute Unassigned
-    for st ∈ unique(stname)
-        antiindexes = union(findall(==("Unassigned"), admin2), [madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow])
-        stnamereduced = stname[Not(antiindexes)]
-        admin2reduced = admin2[Not(antiindexes)]
-        countypops = pop2019[stnamereduced .== st]
-        countynames = admin2reduced[stnamereduced .== st]
-        statepop = sum(countypops)
-        countypopfrac = countypops ./ statepop
-        multidayaverage[Not(union(findall(!=(st), stname), antiindexes))] .+= multidayaverage[(stname .== st) .& (admin2 .== "Unassigned")] .* countypopfrac
-        if st == "Utah"
-            multidayaverage[utrichrow] = multidayaverage[utbrrow] * countypopfrac[findfirst(==("Rich"), countynames)]
-            multidayaverage[utcacherow] = multidayaverage[utbrrow] * countypopfrac[findfirst(==("Cache"), countynames)]
-            multidayaverage[utberow] = multidayaverage[utbrrow] * countypopfrac[findfirst(==("Box Elder"), countynames)]
-            multidayaverage[utpirow] = multidayaverage[utcurow] * countypopfrac[findfirst(==("Piute"), countynames)]
-            multidayaverage[utwaynerow] = multidayaverage[utcurow] * countypopfrac[findfirst(==("Wayne"), countynames)]
-            multidayaverage[utmilrow] = multidayaverage[utcurow] * countypopfrac[findfirst(==("Millard"), countynames)]
-            multidayaverage[utsevrow] = multidayaverage[utcurow] * countypopfrac[findfirst(==("Sevier"), countynames)]
-            multidayaverage[utsanpeterow] = multidayaverage[utcurow] * countypopfrac[findfirst(==("Box Elder"), countynames)]
-            multidayaverage[utjuabrow] = multidayaverage[utcurow] * countypopfrac[findfirst(==("Sanpete"), countynames)]
-            multidayaverage[utemeryrow] = multidayaverage[utseurow] * countypopfrac[findfirst(==("Emery"), countynames)]
-            multidayaverage[utgrandrow] = multidayaverage[utseurow] * countypopfrac[findfirst(==("Grand"), countynames)]
-            multidayaverage[utcarbonrow] = multidayaverage[utseurow] * countypopfrac[findfirst(==("Carbon"), countynames)]
-            multidayaverage[utironrow] = multidayaverage[utswurow] * countypopfrac[findfirst(==("Iron"), countynames)]
-            multidayaverage[utbeaverrow] = multidayaverage[utswurow] * countypopfrac[findfirst(==("Beaver"), countynames)]
-            multidayaverage[utgarfieldrow] = multidayaverage[utswurow] * countypopfrac[findfirst(==("Garfield"), countynames)]
-            multidayaverage[utwashrow] = multidayaverage[utswurow] * countypopfrac[findfirst(==("Washington"), countynames)]
-            multidayaverage[utkanerow] = multidayaverage[utswurow] * countypopfrac[findfirst(==("Kane"), countynames)]
-            multidayaverage[utuintahrow] = multidayaverage[uttcrow] * countypopfrac[findfirst(==("Uintah"), countynames)]
-            multidayaverage[utdaggrow] = multidayaverage[uttcrow] * countypopfrac[findfirst(==("Daggett"), countynames)]
-            multidayaverage[utduchrow] = multidayaverage[uttcrow] * countypopfrac[findfirst(==("Duchesne"), countynames)]
-            multidayaverage[utweberrow] = multidayaverage[utwmrow] * countypopfrac[findfirst(==("Weber"), countynames)]
-            multidayaverage[utmorganrow] = multidayaverage[utwmrow] * countypopfrac[findfirst(==("Morgan"), countynames)]
-        elseif st == "Alaska"
-            countynames[findfirst(==("Bristol Bay plus Lake and Peninsula"), countynames)] = "Lake and Peninsula"
-            sortorder = sortperm(countynames)
-            sort!(countynames)
-            multidayaverage[akbrow] = multidayaverage[akblprow] * countypopfrac[findfirst(==("Bristol Bay"), countynames)]
-            multidayaverage[akblprow] *= countypopfrac[findfirst(==("Lake and Peninsula"), countynames)]
-            multidayaverage[akvcrow] += multidayaverage[akcrow] + multidayaverage[akcrrow]
-            # reorder to account for Lake and Peninsula
-            multidayaverage[Not(union(findall(!=(st), stname), antiindexes))] = multidayaverage[Not(union(findall(!=(st), stname), antiindexes))][sortorder]
-        elseif st == "Massachusetts"
-            multidayaverage[madrow] = multidayaverage[madnrow] * countypopfrac[findfirst(==("Dukes"), countynames)]
-            multidayaverage[manrow] = multidayaverage[madnrow] * countypopfrac[findfirst(==("Nantucket"), countynames)]
-        elseif st == "Missouri"
-            multidayaverage[mojackrow] += multidayaverage[mokcrow] * countypopfrac[findfirst(==("Jackson"), countynames)]
-            multidayaverage[moclayrow] += multidayaverage[mokcrow] * countypopfrac[findfirst(==("Clay"), countynames)]
-            multidayaverage[mocassrow] += multidayaverage[mokcrow] * countypopfrac[findfirst(==("Cass"), countynames)]
-            multidayaverage[moplatterow] += multidayaverage[mokcrow] * countypopfrac[findfirst(==("Platte"), countynames)]
+    # Process unassigned
+    for statename ∈ unique(data[!, :Province_State])
+        if statename == "Puerto Rico" 
+            # skip until I can integrate its county populations
+            delete!(data, selectstatecounties(data, statename))
+            delete!(data, selectstate(data, statename))
+            continue
         end
+        statepop = getstatepop(data, statename)
+        stateunassignedrow = selectcounty(data, statename, "Unassigned")
+        for countyname ∈ data[selectstatecounties(data, statename), :Admin2]
+            countyname != "Unassigned" || continue
+            addcountycases!(data, statename, countyname, stateunassignedrow, statepop, datarange)
+        end
+        delete!(data, selectcounty(data, statename, "Unassigned"))
+        delete!(data, selectstate(data, statename))
     end
     
-    deleteat!(multidayaverage, sort!([madnrow, akcrrow, akcrow, utbrrow, utcurow, utseurow, utswurow, uttcrow, utwmrow, mokcrow, unassignedrows...]))
-
-    multidayaverages = hcat(multidayaverages, multidayaverage)
+    return nothing
 end
 
-multidayaverages ./= pop2019
+function extractseries(data, datarange)
+
+end
+
+
+    # convert from cumulative to day-to-day changes
+    for row ∈ eachrow(data[!, datarange])
+        row[2:end] .= diff(collect(row))
+    end
+
+function normalizedata!(data, datarange)
+    for row ∈ eachrow(data[!, datarange])
+        row .= sma(collect(row), 7, true)
+    end
+end
+
+data = loadcountydata()
+colnames = propertynames(data)
+datarange = findfirst(==(Symbol("1/22/20")), colnames):findfirst(==(:SUMLEV), colnames) - 1
+preparedata!(data, datarange)
+
+series = Array{Float64, 2}(data[!, datarange])
+series = diff(series, dims = 2)
+series ./= data[!, :POPESTIMATE2019]
+fixspikes!(data, series)
+
+
+function fixspikes!(data, series)
+    countyfix!(data, series, "Alabama", 118, [12])
+    countyfix!(data, series, "Alabama", 192, [49])
+    countyfix!(data, series, "Alabama", 198, [13, 49, 65])
+    countyfix!(data, series, "Alabama", 200, [13, 49, 65])
+    countyfix!(data, series, "Alabama", 212, [31, 34, 35])
+    countyfix!(data, series, "Alabama", 246, [63])
+    countyfix!(data, series, "Alabama", 254, [31, 34, 35])
+    countyfix!(data, series, "Alabama", 260, [46])
+    countyfix!(data, series, "Alabama", 274, [49, 65])
+    countyfix!(data, series, "Alabama", 275, [8, 31, 34, 35])
+    countyfix!(data, series, "Alabama", 282, [20])
+    countyfix!(data, series, "Alabama", 283, [17, 30, 39])
+    countyfix!(data, series, "Alabama", 313, [17])
+    statefix!(data, series, "Alabama", 325)
+    countyfix!(data, series, "Alabama", 328, [7])
+    countyfix!(data, series, "Alabama", 366, [62])
+    countyfix!(data, series, "Alabama", 378, [53])
+    countyfix!(data, series, "Alabama", 382, 384, [53])
+    statefix!(data, series, "Alabama", 386)
+    countyfix!(data, series, "Alabama", 396, [46])
+    countyfix!(data, series, "Alabama", 399, 400, [46])
+    countyfix!(data, series, "Alabama", 406, [5, 7, 8, 15, 22, 25, 28, 36, 43, 44, 48, 58, 59, 67])
+    statefix!(data, series, "Alabama", 418)
+    countyfix!(data, series, "Alabama", 447, [49])
+    countyfix!(data, series, "Alabama", 454, [49])
+    countyfix!(data, series, "Alabama", 470, [44, 59])
+    statefix!(data, series, "Alabama", 478)
+    statefix!(data, series, "Alabama", 479)
+end
+
+seriesavg = hcat(sma.(eachrow(series), 7)...)
+seriesavg ./= maximum(seriesavg, dims = 1)
+
+
+
 
 # adjust for data jumps
-function countyfix!(multidayaverages, stateids, stateid, start, stop, counties)
-    selector = findfirst(stateids .== stateid) .+ counties .- 1
-    range = start:stop
-    multidayaverages[selector, range] .-= mean(multidayaverages[selector, range], dims = 2) .- mean(multidayaverages[selector, [start - 1, stop + 1]], dims = 2)
+function countyfix!(data, series, statename, dayindex, counties)
+    selector = selectstatecounties(data, statename)[counties]
+    series[selector, dayindex] .-= mean(series[selector, dayindex], dims = 2) .- mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
 end
-function statefix!(multidayaverages, stateids, stateid, start, stop)
-    selector = stateids .== stateid
-    range = start:stop
-    multidayaverages[selector, range] .-= mean(multidayaverages[selector, range], dims = 2) .- mean(multidayaverages[selector, [start - 1, stop + 1]], dims = 2)
+function countyfix!(data, series, statename, startindex, stopindex, counties)
+    selector = selectstatecounties(data, statename)[counties]
+    range = startindex:stopindex
+    series[selector, range] .-= mean(series[selector, range], dims = 2) .- mean(series[selector, [startindex - 1, stopindex + 1]], dims = 2)
 end
-countyfix!(multidayaverages, stateids, ALABAMA, 390, 393, [46])
-countyfix!(multidayaverages, stateids, ALABAMA, 396, 400, [46])
-countyfix!(multidayaverages, stateids, ALABAMA, 240, 246, [63])
-countyfix!(multidayaverages, stateids, ALABAMA, 269, 275, [8, 31, 34, 35])
-countyfix!(multidayaverages, stateids, ALABAMA, 268, 274, [49, 65])
-countyfix!(multidayaverages, stateids, ALABAMA, 240, 246, [17, 20, 30, 39])
-countyfix!(multidayaverages, stateids, ALABAMA, 277, 283, [17, 30, 39])
-countyfix!(multidayaverages, stateids, ALABAMA, 112, 118, [12])
-countyfix!(multidayaverages, stateids, ALABAMA, 194, 198, [13])
-countyfix!(multidayaverages, stateids, ALABAMA, 192, 200, [13])
-statefix!(multidayaverages, stateids, ALABAMA, 412, 418)
-countyfix!(multidayaverages, stateids, ALABAMA, 400, 406, [5, 7, 8, 15, 22, 25, 28, 36, 43, 44, 48, 58, 59, 67])
-statefix!(multidayaverages, stateids, ALABAMA, 473, 477)
-statefix!(multidayaverages, stateids, ALABAMA, 472, 478)
-statefix!(multidayaverages, stateids, ALABAMA, 471, 479)
+function statefix!(data, series, statename, start, stop)
+    selector = selectstatecounties(data, statename)
+    range = start:stop
+    series[selector, range] .-= mean(series[selector, range], dims = 2) .- mean(series[selector, [start - 1, stop + 1]], dims = 2)
+end
+function statefix!(data, series, statename, dayindex)
+    selector = selectstatecounties(data, statename)
+    series[selector, dayindex] .-= mean(series[selector, dayindex], dims = 2) .- mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
+end
 countyfix!(multidayaverages, stateids, ALASKA, 327, 333, [10])
 countyfix!(multidayaverages, stateids, ALASKA, 349, 355, [10])
 countyfix!(multidayaverages, stateids, ALASKA, 456, 462, [10, 28]) # will need another for recent
@@ -376,10 +420,6 @@ countyfix!(multidayaverages, stateids, WISCONSIN, 239, 239, [57:60...])
 statefix!(multidayaverages, stateids, WISCONSIN, 265, 271)
 countyfix!(multidayaverages, stateids, WYOMING, 395, 399, [10])
 countyfix!(multidayaverages, stateids, WYOMING, 394, 400, [10])
-
-
-multidayaverages ./= maximum(multidayaverages, dims = 2)
-#multidayaverages ./= mean(maximum(multidayaverages, dims = 2))
 
 
 alaskageoms = geoms[stateids .== ALASKA]
