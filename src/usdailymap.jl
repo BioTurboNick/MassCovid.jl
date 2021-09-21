@@ -72,20 +72,20 @@ end
 
 function loadcountydata()
     jhudata = CSV.read(downloadcountycasedata(), DataFrame)
-    admin2 = Missings.replace(jhudata[!, :Admin2], "")
+    admin2 = Missings.replace(jhudata.Admin2, "")
 
     poppath = joinpath("input", "co-est2019-alldata.csv")
     popdata = CSV.read(poppath, DataFrame)
-    popdata[popdata[!, :CTYNAME] .== "Do\xf1a Ana County", :CTYNAME] .= "Dona Ana County"
-    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " County" => "") # trim suffixes
-    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " Census Area" => "")
-    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " Borough" => "")
-    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " Parish" => "")
-    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " City and" => "")
-    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " Municipality" => "")
-    popdata[!, :CTYNAME] = replace.(popdata[!, :CTYNAME], " city" => " City")
+    popdata[popdata.CTYNAME .== "Do\xf1a Ana County", :CTYNAME] .= "Dona Ana County"
+    popdata.CTYNAME = replace.(popdata.CTYNAME, " County" => "") # trim suffixes
+    popdata.CTYNAME = replace.(popdata.CTYNAME, " Census Area" => "")
+    popdata.CTYNAME = replace.(popdata.CTYNAME, " Borough" => "")
+    popdata.CTYNAME = replace.(popdata.CTYNAME, " Parish" => "")
+    popdata.CTYNAME = replace.(popdata.CTYNAME, " City and" => "")
+    popdata.CTYNAME = replace.(popdata.CTYNAME, " Municipality" => "")
+    popdata.CTYNAME = replace.(popdata.CTYNAME, " city" => " City")
     # deal with "City" suffix
-    cityrows = findall(endswith.(popdata[!,:CTYNAME], " City"))
+    cityrows = findall(endswith.(popdata.CTYNAME, " City"))
     citynames = popdata[cityrows, :CTYNAME]
     citynamesappend = deepcopy(citynames)
     citynames[endswith.(citynames, " City")] .= replace.(citynames[endswith.(citynames, " City")], " City" => "")
@@ -98,30 +98,30 @@ function loadcountydata()
     shpdata = DataFrame(Shapefile.Table(shapepath))
     shpdata[!, :NAME] .= Unicode.normalize.(shpdata[!, :NAME], stripmark = true)
     # deal with "City" suffix
-    cityrows = findall(parse.(Int, shpdata[!, :COUNTYFP]) .>= 500)
+    cityrows = findall(parse.(Int, shpdata.COUNTYFP) .>= 500)
     citynames = shpdata[cityrows, :NAME]
     citynamesappend = deepcopy(citynames)
     citynames[endswith.(citynames, " City")] .= replace.(citynames[endswith.(citynames, " City")], " City" => "")
     citynamesappend[.!endswith.(citynamesappend, " City")] = citynamesappend[.!endswith.(citynamesappend, " City")] .* " City"
     shpdata[cityrows[citynamesappend .∈ Ref(admin2)], :NAME] .= citynamesappend[citynamesappend .∈ Ref(admin2)]
     shpdata[cityrows[citynamesappend .∉ Ref(admin2)], :NAME] .= citynames[citynamesappend .∉ Ref(admin2)]
-    shpdata[!, :STNAME] .= [haskey(statefp_name_dict, x) ? statefp_name_dict[x] : missing for x ∈ parse.(Int, shpdata[!, :STATEFP])]
+    shpdata.STNAME .= [haskey(statefp_name_dict, x) ? statefp_name_dict[x] : missing for x ∈ parse.(Int, shpdata.STATEFP)]
 
     data = outerjoin(data, shpdata, on = [:Province_State => :STNAME, :Admin2 => :NAME], matchmissing = :equal)
     return data
 end
 
 selectcounty(data, statename, countyname) =
-    findall((data[!, :Province_State] .== statename) .& (Missings.replace(data[!, :COUNTY], -1) .!= 0) .& (data[!, :Admin2] .== countyname))
+    findall((data.Province_State .== statename) .& (Missings.replace(data.COUNTY, -1) .!= 0) .& (data.Admin2 .== countyname))
 
 selectcounties(data, statename, countynames) =
-    findall((data[!, :Province_State] .== statename) .& (Missings.replace(data[!, :COUNTY], -1) .!= 0) .& (data[!, :Admin2] .∈ Ref(countynames)))
+    findall((data.Province_State .== statename) .& (Missings.replace(data.COUNTY, -1) .!= 0) .& (data.Admin2 .∈ Ref(countynames)))
 
 selectstate(data, statename) =
-    findall((data[!, :Province_State] .== statename) .& (Missings.replace(data[!, :COUNTY], -1) .== 0) .& (data[!, :Admin2] .== statename))
+    findall((data.Province_State .== statename) .& (Missings.replace(data.COUNTY, -1) .== 0) .& (data.Admin2 .== statename))
 
 selectstatecounties(data, statename) =
-    findall((data[!, :Province_State] .== statename) .& (Missings.replace(data[!, :COUNTY], -1) .!= 0))
+    findall((data.Province_State .== statename) .& (Missings.replace(data.COUNTY, -1) .!= 0))
 
 getstatepop(data, statename) =
     data[selectstate(data, statename), :POPESTIMATE2019] |> only
@@ -209,7 +209,7 @@ function preparedata!(data, datarange)
     filter!(:Admin2 => x -> !startswith(x, "Out of"), data)
 
     # Process unassigned
-    for statename ∈ unique(data[!, :Province_State])
+    for statename ∈ unique(data.Province_State)
         if statename == "Puerto Rico" 
             # skip until I can integrate its county populations
             delete!(data, selectstatecounties(data, statename))
@@ -229,16 +229,25 @@ function preparedata!(data, datarange)
     return nothing
 end
 
-data = loadcountydata()
-colnames = propertynames(data)
-datarange = findfirst(==(Symbol("1/22/20")), colnames):findfirst(==(:SUMLEV), colnames) - 1
-preparedata!(data, datarange)
-
-series = Array{Float64, 2}(data[!, datarange])
-series = diff(series, dims = 2)
-series ./= data[!, :POPESTIMATE2019]
-fixspikes!(data, series)
-
+# adjust for data jumps
+function countyfix!(data, series, statename, dayindex, counties)
+    selector = selectstatecounties(data, statename)[counties]
+    series[selector, [dayindex;]] .= mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
+end
+function countyfix!(data, series, statename, startindex, stopindex, counties)
+    selector = selectstatecounties(data, statename)[counties]
+    range = startindex:stopindex
+    series[selector, range] .= mean(series[selector, [startindex - 1, stopindex + 1]], dims = 2)
+end
+function statefix!(data, series, statename, start, stop)
+    selector = selectstatecounties(data, statename)
+    range = start:stop
+    series[selector, range] .= mean(series[selector, [start - 1, stop + 1]], dims = 2)
+end
+function statefix!(data, series, statename, dayindex)
+    selector = selectstatecounties(data, statename)
+    series[selector, [dayindex;]] .= mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
+end
 
 function fixspikes!(data, series)
     countyfix!(data, series, "Alabama", 118, [12])
@@ -301,57 +310,67 @@ function fixspikes!(data, series)
     statefix!(data, series, "Arkansas", 403, 404)
     statefix!(data, series, "Arkansas", 428)
 
+    statefix!(data, series, "California", 66, 67)
+    countyfix!(data, series, "California", 107, [42])
+    countyfix!(data, series, "California", 262, [53])
+    countyfix!(data, series, "California", 266, [45])
+    countyfix!(data, series, "California", 276, [53])
     statefix!(data, series, "California", 307)
     countyfix!(data, series, "California", 315, [28])
+    countyfix!(data, series, "California", 324, 324, [46])
+    countyfix!(data, series, "California", 336, 337, [39])
     statefix!(data, series, "California", 343, 344)
+    countyfix!(data, series, "California", 360, [34])
+    countyfix!(data, series, "California", 380, 381, [2])
     statefix!(data, series, "California", 524)
     statefix!(data, series, "California", 536)
+    countyfix!(data, series, "California", 554, [32])
+
+    countyfix!(data, series, "Florida", 146, [20])
+    countyfix!(data, series, "Florida", 153, [29])
+    countyfix!(data, series, "Florida", 272, [20])
+    countyfix!(data, series, "Florida", 153, 154, [7])
+    countyfix!(data, series, "Florida", 156, 157, [7])
+    countyfix!(data, series, "Florida", 189, [4, 31, 63])
+    countyfix!(data, series, "Florida", 190, [20])
+    countyfix!(data, series, "Florida", 196, 197, [38])
+    countyfix!(data, series, "Florida", 290, [66])
+    countyfix!(data, series, "Florida", 321, [48])
+    countyfix!(data, series, "Florida", 334, [4])
+    statefix!(data, series, "Florida", 345)
+    countyfix!(data, series, "Florida", 392, [20])
+
+    countyfix!(data, series, "Georgia", 174, [131])
+    statefix!(data, series, "Georgia", 175)
+    countyfix!(data, series, "Georgia", 176, [131])
+    statefix!(data, series, "Georgia", 181)
+    statefix!(data, series, "Georgia", 286)
+    countyfix!(data, series, "Georgia", 290, [19])
+    countyfix!(data, series, "Georgia", 290, 291, [44])
+    countyfix!(data, series, "Georgia", 291, 292, [144])
+    countyfix!(data, series, "Georgia", 300, [19])
+    countyfix!(data, series, "Georgia", 302, 303, [19])
+    countyfix!(data, series, "Georgia", 307, [4])
+    countyfix!(data, series, "Georgia", 306, 307, [19])
+
+    countyfix!(data, series, "Hawaii", 233, [5])
+    countyfix!(data, series, "Hawaii", 282, [3])
+    countyfix!(data, series, "Hawaii", 293, [3])
 end
 
-seriesavg = hcat(sma.(eachrow(series), 7)...)
+data = loadcountydata()
+colnames = propertynames(data)
+datarange = findfirst(==(Symbol("1/22/20")), colnames):findfirst(==(:SUMLEV), colnames) - 1
+preparedata!(data, datarange)
+
+series = Array{Float64, 2}(data[!, datarange])
+series = diff(series, dims = 2)
+series ./= data.POPESTIMATE2019
+fixspikes!(data, series)
+seriesavg = hcat(sma.(eachrow(series), 14)...)
 seriesavg ./= maximum(seriesavg, dims = 1)
 
-
-
-
-# adjust for data jumps
-function countyfix!(data, series, statename, dayindex, counties)
-    selector = selectstatecounties(data, statename)[counties]
-    series[selector, [dayindex;]] .= mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
-end
-function countyfix!(data, series, statename, startindex, stopindex, counties)
-    selector = selectstatecounties(data, statename)[counties]
-    range = startindex:stopindex
-    series[selector, range] .= mean(series[selector, [startindex - 1, stopindex + 1]], dims = 2)
-end
-function statefix!(data, series, statename, start, stop)
-    selector = selectstatecounties(data, statename)
-    range = start:stop
-    series[selector, range] .= mean(series[selector, [start - 1, stop + 1]], dims = 2)
-end
-function statefix!(data, series, statename, dayindex)
-    selector = selectstatecounties(data, statename)
-    series[selector, [dayindex;]] .= mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
-end
-countyfix!(multidayaverages, stateids, CALIFORNIA, 519, 525, [10, 12, 16, 38, 41, 43, 45, 49, 57])
-countyfix!(multidayaverages, stateids, CALIFORNIA, 305, 305, [23])
-countyfix!(multidayaverages, stateids, CALIFORNIA, 312, 312, [23])
-countyfix!(multidayaverages, stateids, CALIFORNIA, 326, 326, [23])
-countyfix!(multidayaverages, stateids, CALIFORNIA, 328, 328, [55])
-countyfix!(multidayaverages, stateids, CALIFORNIA, 519, 525, [13])
-countyfix!(multidayaverages, stateids, CALIFORNIA, 541, 541, [1])
-countyfix!(multidayaverages, stateids, CALIFORNIA, 548, 548, [1])
-countyfix!(multidayaverages, stateids, CALIFORNIA, 553, 553, [13])
-countyfix!(multidayaverages, stateids, CALIFORNIA, 560, 560, [13])
-countyfix!(multidayaverages, stateids, FLORIDA, 329, 334, [4])
-countyfix!(multidayaverages, stateids, FLORIDA, 296, 302, [13])
-countyfix!(multidayaverages, stateids, FLORIDA, 284, 290, [66])
-statefix!(multidayaverages, stateids, FLORIDA, 346, 346)
-countyfix!(multidayaverages, stateids, FLORIDA, 147, 153, [29])
-statefix!(multidayaverages, stateids, GEORGIA, 280, 286)
-countyfix!(multidayaverages, stateids, GEORGIA, 287, 292, [143])
-countyfix!(multidayaverages, stateids, HAWAII, 276, 282, [3])
-countyfix!(multidayaverages, stateids, HAWAII, 287, 293, [3])
+#=
 countyfix!(multidayaverages, stateids, IDAHO, 66, 71, [7])
 countyfix!(multidayaverages, stateids, IDAHO, 269, 275, [22])
 countyfix!(multidayaverages, stateids, IDAHO, 513, 517, [5])
@@ -431,18 +450,19 @@ countyfix!(multidayaverages, stateids, WISCONSIN, 239, 239, [57:60...])
 statefix!(multidayaverages, stateids, WISCONSIN, 265, 271)
 countyfix!(multidayaverages, stateids, WYOMING, 395, 399, [10])
 countyfix!(multidayaverages, stateids, WYOMING, 394, 400, [10])
+=#
 
 
-alaskageoms = geoms[stateids .== ALASKA]
-hawaiigeoms = geoms[stateids .== HAWAII]
-#puertoricogeoms = geoms[stateids .== PUERTORICO]
-lower48geoms = geoms[stateids .∉ Ref([ALASKA, HAWAII, PUERTORICO])]
+alaskageoms = data.geometry[data.Province_State .== "Alaska"]
+hawaiigeoms = data.geometry[data.Province_State .== "Hawaii"]
+#puertoricogeoms = data.geometry[data.Province_State .== "Puerto Rico"]
+lower48geoms = data.geometry[data.Province_State .∉ Ref(["Alaska", "Hawaii", "Puerto Rico"])]
 
 grad = cgrad(:thermal)
-colors = map(x -> grad[x], multidayaverages)
-alaskacolors = colors[stateids .== ALASKA, :]
-hawaiicolors = colors[stateids .== HAWAII, :]
-lower48colors = colors[stateids .∉ Ref([ALASKA, HAWAII, PUERTORICO]), :]
+colors = map(x -> grad[x], seriesavg)
+alaskacolors = colors[:, data.Province_State .== "Alaska"]
+hawaiicolors = colors[:, data.Province_State .== "Hawaii"]
+lower48colors = colors[:, data.Province_State .∉ Ref(["Alaska", "Hawaii", "Puerto Rico"])]
 
 # plotting speed improvement
 # remember to also have RecipesPipeline errors fixed
@@ -476,15 +496,15 @@ anim = Plots.Animation()
 date = Date("1/28/2020", dateformat"mm/dd/yyyy")
 for i ∈ 1:length(eachcol(lower48colors))
     println("Day $i")
-    lower48plot = plot(lower48geoms, fillcolor=permutedims(lower48colors[:, i]), size=(2048, 1280),
+    lower48plot = plot(lower48geoms, fillcolor=permutedims(lower48colors[i, :]), size=(2048, 1280),
         grid=false, showaxis=false, ticks=false, aspect_ratio=1.2, title="United States COVID-19 Hot Spots\nNicholas C Bauer PhD | Twitter: @bioturbonick",
         titlefontcolor=:white, background_color=:black, linecolor=grad[0.0])
     annotate!([(-75,30.75, ("$date", 36, :white))])
-    plot!(lower48plot, alaskageoms, fillcolor=permutedims(alaskacolors[:, i]),
+    plot!(lower48plot, alaskageoms, fillcolor=permutedims(alaskacolors[i, :]),
         grid=false, showaxis=false, ticks=false, xlims=(-180,-130), ylims=(51, 78), aspect_ratio=2,
         linecolor=grad[0.0],
         inset=(1, bbox(0.0, 0.0, 0.3, 0.3, :bottom, :left)), subplot=2)
-    plot!(lower48plot, hawaiigeoms, fillcolor=permutedims(hawaiicolors[:, i]),
+    plot!(lower48plot, hawaiigeoms, fillcolor=permutedims(hawaiicolors[i, :]),
         grid=false, showaxis=false, ticks=false, xlims=(-160, -154), ylims=(18, 23),
         linecolor=grad[0.0],
         inset=(1, bbox(0.25, 0.0, 0.2, 0.2, :bottom, :left)), subplot=3)
