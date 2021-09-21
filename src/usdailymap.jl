@@ -402,6 +402,33 @@ function fixspikes!(data, series)
     countyfix!(data, series, "Missouri", 428, 429, [23, 52, 56, 63, 82, 87, 97, 106])
     statefix!(data, series, "Missouri", 451)
     statefix!(data, series, "Missouri", 501)
+
+    countyfix!(data, series, "Montana", 278, [23])
+    countyfix!(data, series, "Montana", 280, [17])
+    countyfix!(data, series, "Montana", 297, [44])
+    countyfix!(data, series, "Montana", 532, [38])
+    countyfix!(data, series, "Montana", 572, 573, [35])
+
+    countyfix!(data, series, "New Hampshire", 83, 85, [6])
+    countyfix!(data, series, "New Hampshire", 456, [4])
+
+    countyfix!(data, series, "Nebraska", 162, [87])
+    countyfix!(data, series, "Nebraska", 105, 106, [60])
+    countyfix!(data, series, "Nebraska", 119, 121, [52])
+
+    countyfix!(data, series, "Nevada", 304, 306, [17])
+    countyfix!(data, series, "Nevada", 311, [17])
+    countyfix!(data, series, "Nevada", 312, [7])
+    countyfix!(data, series, "Nevada", 319, 320, [17])
+    countyfix!(data, series, "Nevada", 323, [17])
+    statefix!(data, series, "Nevada", 600)
+
+    countyfix!(data, series, "Oregon", 145, 146, [31])
+    countyfix!(data, series, "Oregon", 247, [4])
+
+    countyfix!(data, series, "South Carolina", 232, 233, [31])
+    countyfix!(data, series, "South Carolina", 244, [2, 6, 19, 35])
+    countyfix!(data, series, "South Carolina", 293, 294, [31])
 end
 
 data = loadcountydata()
@@ -417,16 +444,6 @@ seriesavg = hcat(sma.(eachrow(series), 14)...)
 seriesavg ./= maximum(seriesavg, dims = 1)
 
 #=
-countyfix!(multidayaverages, stateids, MONTANA, 526, 532, [38])
-countyfix!(multidayaverages, stateids, NEWHAMPSHIRE, 450, 456, [4])
-countyfix!(multidayaverages, stateids, NEBRASKA, 161, 162, [87])
-countyfix!(multidayaverages, stateids, NEBRASKA, 156, 167, [87])
-countyfix!(multidayaverages, stateids, NEVADA, 305, 311, [17])
-countyfix!(multidayaverages, stateids, NEVADA, 317, 323, [17])
-countyfix!(multidayaverages, stateids, NEVADA, 320, 320, [17])
-countyfix!(multidayaverages, stateids, OREGON, 140, 145, [31])
-countyfix!(multidayaverages, stateids, OREGON, 241, 247, [4])
-countyfix!(multidayaverages, stateids, SOUTHCAROLINA, 238, 244, [2, 6, 19, 35])
 countyfix!(multidayaverages, stateids, TENNESSEE, 87, 92, [4])
 countyfix!(multidayaverages, stateids, TENNESSEE, 86, 93, [4])
 countyfix!(multidayaverages, stateids, TENNESSEE, 86, 86, [4])
