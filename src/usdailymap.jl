@@ -482,7 +482,13 @@ function fixspikes!(data, series)
     countyfix!(data, series, "Wisconsin", 72, 74, [47])
     countyfix!(data, series, "Wisconsin", 226, 227, [19])
     countyfix!(data, series, "Wisconsin", 238, 239, [57:60...])
+    statefix!(data, series, "Wisconsin", 269, 270)
+    statefix!(data, series, "Wisconsin", 271)
     countyfix!(data, series, "Wisconsin", 307, [19])
+
+    countyfix!(data, series, "Wyoming", 332, [10])
+    countyfix!(data, series, "Wyoming", 344, [10])
+    countyfix!(data, series, "Wyoming", 400, [10])
 
     statefix!(data, series, "Utah", 67, 68)
     countyfix!(data, series, "Utah", 86, 88, [27])
@@ -543,7 +549,6 @@ lower48colors = colors[:, data.Province_State .∉ Ref(["Alaska", "Hawaii", "Pue
         return out
     end
 end
-
 
 anim = Plots.Animation()
 date = Date(names(data)[datarange[end]], dateformat"mm/dd/yy") - Day(length(eachrow(lower48colors)) - 1)
