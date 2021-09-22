@@ -358,6 +358,8 @@ function fixspikes!(data, series)
     countyfix!(data, series, "Hawaii", 293, [3])
 
     countyfix!(data, series, "Idaho", 65, 66, [38])
+    countyfix!(data, series, "Idaho", 69, 70, [7])
+    countyfix!(data, series, "Idaho", 72, 73, [7])
     statefix!(data, series, "Idaho", 231)
     countyfix!(data, series, "Idaho", 275, [22])
     countyfix!(data, series, "Idaho", 374, [17])
@@ -444,6 +446,8 @@ function fixspikes!(data, series)
     statefix!(data, series, "Texas", 282)
     countyfix!(data, series, "Texas", 282, 284, [206])
     statefix!(data, series, "Texas", 284)
+    statefix!(data, series, "Texas", 327)
+    statefix!(data, series, "Texas", 326)
     countyfix!(data, series, "Texas", 290, [38])
     countyfix!(data, series, "Texas", 326, 327, [41, 48])
     countyfix!(data, series, "Texas", 327, 328, [7])
@@ -454,6 +458,8 @@ function fixspikes!(data, series)
     statefix!(data, series, "Texas", 378)
     countyfix!(data, series, "Texas", 380, [115])
     countyfix!(data, series, "Texas", 384, 387, [206])
+    countyfix!(data, series, "Texas", 385, 388, [208])
+    countyfix!(data, series, "Texas", 405, [208])
     countyfix!(data, series, "Texas", 413, [49])
     countyfix!(data, series, "Texas", 405, [208])
     countyfix!(data, series, "Texas", 413, 414, [24])
@@ -464,7 +470,12 @@ function fixspikes!(data, series)
     countyfix!(data, series, "Texas", 435, 436, [135, 138])
     countyfix!(data, series, "Texas", 443, [138])
     countyfix!(data, series, "Texas", 504, 505, [14])
-    
+    statefix!(data, series, "Texas", 507)
+    statefix!(data, series, "Texas", 514)
+    statefix!(data, series, "Texas", 518)
+    statefix!(data, series, "Texas", 521)
+    statefix!(data, series, "Texas", 524)
+        
     countyfix!(data, series, "Washington", 538, [13])
     statefix!(data, series, "Washington", 547, 550)
 
@@ -472,6 +483,15 @@ function fixspikes!(data, series)
     countyfix!(data, series, "Wisconsin", 226, 227, [19])
     countyfix!(data, series, "Wisconsin", 238, 239, [57:60...])
     countyfix!(data, series, "Wisconsin", 307, [19])
+
+    statefix!(data, series, "Utah", 67, 68)
+    countyfix!(data, series, "Utah", 86, 88, [27])
+    statefix!(data, series, "Utah", 86)
+    statefix!(data, series, "Utah", 309, 310)
+    countyfix!(data, series, "Utah", 387, [14])
+    countyfix!(data, series, "Utah", 389, [14])
+    countyfix!(data, series, "Utah", 480, [15])
+    countyfix!(data, series, "Utah", 504, 505, [12])
 end
 
 data = loadcountydata()
@@ -483,17 +503,8 @@ series = Array{Float64, 2}(data[!, datarange])
 series = diff(series, dims = 2)
 series ./= data.POPESTIMATE2019
 fixspikes!(data, series)
-seriesavg = hcat(sma.(eachrow(series), 14)...)
+seriesavg = hcat(sma.(eachrow(series), 7)...)
 seriesavg ./= maximum(seriesavg, dims = 1)
-
-#=
-countyfix!(multidayaverages, stateids, WISCONSIN, 232, 232, [57:60...])
-countyfix!(multidayaverages, stateids, WISCONSIN, 239, 239, [57:60...])
-statefix!(multidayaverages, stateids, WISCONSIN, 265, 271)
-countyfix!(multidayaverages, stateids, WYOMING, 395, 399, [10])
-countyfix!(multidayaverages, stateids, WYOMING, 394, 400, [10])
-=#
-
 
 alaskageoms = data.geometry[data.Province_State .== "Alaska"]
 hawaiigeoms = data.geometry[data.Province_State .== "Hawaii"]
@@ -535,7 +546,7 @@ end
 
 
 anim = Plots.Animation()
-date = Date("2/5/2020", dateformat"mm/dd/yyyy")
+date = Date(names(data)[datarange[end]], dateformat"mm/dd/yy") - Day(length(eachrow(lower48colors)) - 1)
 for i ∈ 1:length(eachrow(lower48colors))
     println("Day $i")
     lower48plot = plot(lower48geoms, fillcolor=permutedims(lower48colors[i, :]), size=(2048, 1280),
@@ -557,4 +568,3 @@ for i = 1:20 # insert 20 more of the same frame at end
     Plots.frame(anim)
 end
 mp4(anim, joinpath("output", "us_animation_map.mp4"), fps = 7)
-#mp4(anim, joinpath("output", "us_animation_map_absolute.mp4"), fps = 7)
