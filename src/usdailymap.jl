@@ -606,6 +606,14 @@ function fixspikes!(data, series, datarange)
     end
     stateweekendfix!(data, series, "Virginia", 531, 3)
     stateweekendfix!(data, series, "Virginia", 594, 3)
+
+    # consider:
+    # - add flickering
+    # - algorithm to dampen huge peaks based on how flat surrounding is
+    # - algorithm to automatically move data over weekends
+    # - algorithm to detect up/down corrections
+    # - algorithm to distribute lone downspikes
+
 end
 
 data = loadcountydata()
