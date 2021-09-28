@@ -624,7 +624,7 @@ preparedata!(data, datarange)
 series = Array{Float64, 2}(data[!, datarange])
 series = diff(series, dims = 2)
 series ./= data.POPESTIMATE2019
-fixspikes!(data, series)
+fixspikes!(data, series, datarange)
 seriesavg = hcat(sma.(eachrow(series), 7)...)
 seriesavg ./= maximum(seriesavg, dims = 1)
 
