@@ -316,6 +316,8 @@ function fixspikes!(data, series, datarange)
     statefix!(data, series, "Arizona", 434)
     countyfix!(data, series, "Arizona", 443, [2, 4, 5, 10])
     
+    countyfix!(data, series, "Arkansas", 89, 92, [40])
+    countyfix!(data, series, "Arkansas", 142, 143, [39])
     statefix!(data, series, "Arkansas", 206)
     countyfix!(data, series, "Arkansas", 386, [71])
     statefix!(data, series, "Arkansas", 403, 404)
@@ -414,6 +416,14 @@ function fixspikes!(data, series, datarange)
     countyfix!(data, series, "Kansas", 518, [3, 5])
     countyfix!(data, series, "Kansas", 520, [3, 5])
 
+    statefix!(data, series, "Kentucky", 292)
+    countyfix!(data, series, "Kentucky", 367, 368, [15])
+    countyfix!(data, series, "Kentucky", 406, [17])
+    countyfix!(data, series, "Kentucky", 407, 408, [17])
+    statefix!(data, series, "Kentucky", 430)
+    countyfix!(data, series, "Kentucky", 503, [111])
+    countyfix!(data, series, "Kentucky", 507, [118])
+    countyfix!(data, series, "Kentucky", 510, 511, [118])
     for i ∈ 530:7:lastindex(datarange) - 1
         stateweekendfix!(data, series, "Kentucky", i, 2)
     end
@@ -476,6 +486,10 @@ function fixspikes!(data, series, datarange)
     stateweekendfix!(data, series, "New Hampshire", 531, 3)
     stateweekendfix!(data, series, "New Hampshire", 594, 3)
 
+    statefix!(data, series, "New York", 92, 94)
+    countyfix!(data, series, "New York", 305, [36])
+    stateweekendfix!(data, series, "New York", 585, 1)
+
     countyfix!(data, series, "Nebraska", 162, [87])
     countyfix!(data, series, "Nebraska", 105, 106, [60])
     countyfix!(data, series, "Nebraska", 119, 121, [52])
@@ -491,6 +505,7 @@ function fixspikes!(data, series, datarange)
     stateweekendfix!(data, series, "Nebraska", 594, 3)
     stateweekendfix!(data, series, "Nebraska", 602, 3)
     stateweekendfix!(data, series, "Nebraska", 608, 3)
+    #statefix!(data, series, "Nebraska", 612) see if this gets corrected though
 
     countyfix!(data, series, "Nevada", 304, 306, [17])
     countyfix!(data, series, "Nevada", 311, [17])
@@ -507,6 +522,14 @@ function fixspikes!(data, series, datarange)
 
     countyfix!(data, series, "Oregon", 145, 146, [31])
     countyfix!(data, series, "Oregon", 247, [4])
+
+    countyfix!(data, series, "Pennsylvania", 325, [47])
+    countyfix!(data, series, "Pennsylvania", 328, [47])
+    countyfix!(data, series, "Pennsylvania", 334, 342, [47])
+    countyfix!(data, series, "Pennsylvania", 348, [47])
+    countyfix!(data, series, "Pennsylvania", 355, 357, [47])
+    countyfix!(data, series, "Pennsylvania", 365, [27])
+    statefix!(data, series, "Pennsylvania", 430, 431)
 
     statefix!(data, series, "Rhode Island", 574)
     statefix!(data, series, "Rhode Island", 588)
@@ -525,9 +548,13 @@ function fixspikes!(data, series, datarange)
     end
 
     countyfix!(data, series, "Tennessee", 92, 93, [4, 48])
+    countyfix!(data, series, "Tennessee", 100, 101, [85])
     countyfix!(data, series, "Tennessee", 111, 113, [48])
     countyfix!(data, series, "Tennessee", 132, 133, [48])
     countyfix!(data, series, "Tennessee", 139, 141, [48])
+    countyfix!(data, series, "Tennessee", 222, [91])
+    countyfix!(data, series, "Tennessee", 231, [91])
+    countyfix!(data, series, "Tennessee", 292, 293, [9, 20, 29, 34])
     countyfix!(data, series, "Tennessee", 385, [44])
     statefix!(data, series, "Tennessee", 385)
     for i ∈ 530:7:lastindex(datarange) - 1
