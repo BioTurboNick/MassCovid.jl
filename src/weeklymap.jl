@@ -197,7 +197,7 @@ anim = Plots.Animation()
 for i ∈ eachindex(weeks)
     plot(ratemaps[i])
     areaplot!(categorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
-                     xaxis=((1,length(weeks)),30), xticks=(1:3:length(weeks), weeks[1:3:end]),
+                     xaxis=((1,length(weeks)),30), xticks=(1:4:length(weeks), weeks[1:4:end]),
                      yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
                      tick_direction=:in,
                      inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
@@ -214,7 +214,7 @@ anim = Plots.Animation()
 for i ∈ eachindex(weeks)
     plot(pposmaps[i])
     areaplot!(pposcategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(pposriskcolors)))), linewidth=0, widen=false,
-                     xaxis=((1,length(weeks)),30), xticks=(1:3:length(weeks), weeks[1:3:end]),
+                     xaxis=((1,length(weeks)),30), xticks=(1:4:length(weeks), weeks[1:4:end]),
                      yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
                      tick_direction=:in,
                      inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,

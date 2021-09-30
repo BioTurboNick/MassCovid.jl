@@ -203,7 +203,7 @@ for i = 1:7 # age categories
     for i ∈ eachindex(weeks)
         plot(oneplusmaps[i])
         areaplot!(onepluscategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
-                        xaxis=((1,length(weeks)),30), xticks=(1:2:length(weeks), weeks[1:2:end]),
+                        xaxis=((1,length(weeks)),30), xticks=(1:3:length(weeks), weeks[1:3:end]),
                         yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
                         tick_direction=:in,
                         inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
@@ -220,7 +220,7 @@ for i = 1:7 # age categories
     for i ∈ eachindex(weeks)
         plot(fullmaps[i])
         areaplot!(fullcategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
-                        xaxis=((1,length(weeks)),30), xticks=(1:2:length(weeks), weeks[1:2:end]),
+                        xaxis=((1,length(weeks)),30), xticks=(1:3:length(weeks), weeks[1:3:end]),
                         yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
                         tick_direction=:in,
                         inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
