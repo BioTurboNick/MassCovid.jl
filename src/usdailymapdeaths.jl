@@ -234,31 +234,64 @@ function preparedata!(data, datarange)
     return nothing
 end
 
-# adjust for data jumps
-function countyfix!(data, series, statename, dayindex, counties)
-    selector = selectstatecounties(data, statename)[counties]
-    series[selector, [dayindex;]] .= mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
-end
-function countyfix!(data, series, statename, startindex, stopindex, counties)
-    selector = selectstatecounties(data, statename)[counties]
-    range = startindex:stopindex
-    series[selector, range] .= mean(series[selector, [startindex - 1, stopindex + 1]], dims = 2)
-end
-function statefix!(data, series, statename, start, stop)
-    selector = selectstatecounties(data, statename)
-    range = start:stop
-    series[selector, range] .= mean(series[selector, [start - 1, stop + 1]], dims = 2)
-end
-function statefix!(data, series, statename, dayindex)
-    selector = selectstatecounties(data, statename)
-    series[selector, [dayindex;]] .= mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
-end
-function stateweekendfix!(data, series, statename, dayindex, weekendlength)
-    selector = selectstatecounties(data, statename)
-    series[selector, (dayindex - weekendlength):dayindex] .= series[selector, dayindex] / (weekendlength + 1)
+function fixnegatives!(series)
+    # distribute negatives by canceling out recent positives
+    for row ∈ eachrow(series)
+        for i ∈ reverse(axes(series, 2))
+            row[i] < 0 || continue
+            for j ∈ i - 1:-1:1
+                row[j] > 0 || continue
+                if row[j] ≥ row[i]
+                    row[j] += row[i]
+                    row[i] = 0
+                else
+                    row[i] += row[j]
+                    row[j] = 0
+                end
+                row[i] < 0 || break
+            end
+            row[i] = 0
+        end
+    end
 end
 
-function fixspikes!(data, series, datarange)
+function fixweekendspikes!(series)
+    # distribute spikes preceded by 1-6 zero-days evenly across the period
+    # here, "zero" is < 0.01 * the spike value
+    for row ∈ eachrow(series)
+        for i ∈ reverse(axes(series, 2))
+            threshold = 0.02 * row[i]
+            row[i] > 0 && i > 1 && row[i - 1] < threshold || continue
+            # count adjacent ~0-days
+            count = 0
+            for j ∈ i - 1:-1:i - 6
+                j > 0 && row[j] < threshold || break
+                count += 1
+            end
+            count == 6 && i > 7 && row[i - 7] < threshold && continue # more than a week of zeros, different type of spike
+            spreadvalue = row[i] / (count + 1)
+            row[i - count:i - 1] .+= spreadvalue
+            row[i] = spreadvalue
+        end
+    end
+end
+
+function dampenspikes!(series)
+    # eliminate spikes by Windsorizing
+    for row ∈ eachrow(series)
+        sortedvals = row |> vec |> sort
+        maxdiffi = sortedvals |> diff |> argmax
+        if length(row) - maxdiffi > length(row) / 50
+            # no more than 2 spikes dampened per 100 days
+            maxdiffi = length(row) ÷ 50
+        end
+        thresholdval = sortedvals[maxdiffi + 1]
+        replacementval = sortedvals[maxdiffi]
+        for i ∈ reverse(axes(series, 2))
+            row[i] < thresholdval && continue
+            row[i] = replacementval
+        end
+    end
 end
 
 data = loadcountydata()
@@ -269,16 +302,21 @@ preparedata!(data, datarange)
 series = Array{Float64, 2}(data[!, datarange])
 series = diff(series, dims = 2)
 series ./= data.POPESTIMATE2019
-fixspikes!(data, series, datarange)
+fixnegatives!(series)
+fixweekendspikes!(series)
+dampenspikes!(series)
+#fixspikes!(data, series, datarange)
 seriesavg = hcat(sma.(eachrow(series), 28)...)
 seriesavg ./= maximum(seriesavg, dims = 1)
+seriesavg[isnan.(seriesavg)] .= 0
 
 alaskageoms = data.geometry[data.Province_State .== "Alaska"]
 hawaiigeoms = data.geometry[data.Province_State .== "Hawaii"]
 #puertoricogeoms = data.geometry[data.Province_State .== "Puerto Rico"]
 lower48geoms = data.geometry[data.Province_State .∉ Ref(["Alaska", "Hawaii", "Puerto Rico"])]
 
-grad = cgrad([RGB(1.0, 0.9, 0.9), RGB(1.0, 0.2, 0.2), RGB(0x8a/255, 0x03/255, 0x03/255)])
+#grad = cgrad([RGB(1.0, 0.9, 0.9), RGB(1.0, 0.2, 0.2), RGB(0x8a/255, 0x03/255, 0x03/255)]) # for white map
+grad = cgrad([RGB(0.05, 0, 0), RGB(0x48/255, 0, 0), RGB(0x8a/255, 0x03/255, 0x03/255)])
 colors = map(x -> grad[x], seriesavg)
 alaskacolors = colors[:, data.Province_State .== "Alaska"]
 hawaiicolors = colors[:, data.Province_State .== "Hawaii"]
@@ -317,7 +355,7 @@ for i ∈ 1:length(eachrow(lower48colors))
     println("Day $i")
     lower48plot = plot(lower48geoms, fillcolor=permutedims(lower48colors[i, :]), size=(2048, 1280),
         grid=false, showaxis=false, ticks=false, aspect_ratio=1.2, title="United States COVID-19 Death Hot Spots\nNicholas C Bauer PhD | Twitter: @bioturbonick",
-        titlefontcolor=:black, background_color=:white, linecolor=grad[0.0])
+        titlefontcolor=:white, background_color=:black, linecolor=grad[0.0])
     annotate!([(-75,30.75, ("$date", 36, :white))])
     plot!(lower48plot, alaskageoms, fillcolor=permutedims(alaskacolors[i, :]),
         grid=false, showaxis=false, ticks=false, xlims=(-180,-130), ylims=(51, 78), aspect_ratio=2,

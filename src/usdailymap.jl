@@ -253,395 +253,167 @@ function statefix!(data, series, statename, dayindex)
     selector = selectstatecounties(data, statename)
     series[selector, [dayindex;]] .= mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
 end
-function stateweekendfix!(data, series, statename, dayindex, weekendlength)
-    selector = selectstatecounties(data, statename)
-    series[selector, (dayindex - weekendlength):dayindex] .= series[selector, dayindex] / (weekendlength + 1)
+
+function fixnegatives!(series)
+    # distribute negatives by canceling out recent positives
+    for row ∈ eachrow(series)
+        for i ∈ reverse(axes(series, 2))
+            row[i] < 0 || continue
+            for j ∈ i - 1:-1:1
+                row[j] > 0 || continue
+                if row[j] ≥ row[i]
+                    row[j] += row[i]
+                    row[i] = 0
+                else
+                    row[i] += row[j]
+                    row[j] = 0
+                end
+                row[i] < 0 || break
+            end
+            row[i] = 0 # couldn't find any earlier positives
+        end
+    end
 end
 
-function fixspikes!(data, series, datarange)
-    countyfix!(data, series, "Alabama", 118, [12])
-    countyfix!(data, series, "Alabama", 192, [49])
-    countyfix!(data, series, "Alabama", 198, [13, 49, 65])
-    countyfix!(data, series, "Alabama", 200, [13, 49, 65])
-    countyfix!(data, series, "Alabama", 212, [31, 34, 35])
-    countyfix!(data, series, "Alabama", 246, [63])
-    countyfix!(data, series, "Alabama", 254, [31, 34, 35])
-    countyfix!(data, series, "Alabama", 260, [46])
-    countyfix!(data, series, "Alabama", 274, [49, 65])
-    countyfix!(data, series, "Alabama", 275, [8, 31, 34, 35])
-    countyfix!(data, series, "Alabama", 282, [20])
-    countyfix!(data, series, "Alabama", 283, [17, 30, 39])
-    countyfix!(data, series, "Alabama", 313, [17])
+function fixweekendspikes!(series)
+    # distribute spikes preceded by 1-6 zero-days evenly across the period
+    # here, "zero" is < 0.02 * the spike value
+    for row ∈ eachrow(series)
+        for i ∈ reverse(axes(series, 2))
+            threshold = 0.02 * row[i]
+            row[i] > 0 && i > 1 && row[i - 1] < threshold || continue
+            # count adjacent ~0-days
+            count = 0
+            for j ∈ i - 1:-1:i - 6
+                j > 0 && row[j] < threshold || break
+                count += 1
+            end
+            count == 6 && i > 7 && row[i - 7] < threshold && continue # more than a week of zeros, different type of spike
+            spreadvalue = row[i] / (count + 1)
+            row[i - count:i - 1] .+= spreadvalue
+            row[i] = spreadvalue
+        end
+    end
+end
+
+function dampenspikes!(series)
+    # eliminate spikes by Windsorizing
+    for row ∈ eachrow(series)
+        sortedvals = row |> vec |> sort
+        maxdiffi = sortedvals |> diff |> argmax
+        if length(row) - maxdiffi > length(row) / 50
+            # no more than 2 spikes dampened per 100 days
+            maxdiffi = length(row) ÷ 50
+        end
+        thresholdval = sortedvals[maxdiffi + 1]
+        replacementval = sortedvals[maxdiffi]
+        for i ∈ reverse(axes(series, 2))
+            row[i] < thresholdval && continue
+            row[i] = replacementval
+        end
+    end
+end
+
+function fixspikes!(data, series)
     statefix!(data, series, "Alabama", 325)
-    countyfix!(data, series, "Alabama", 328, [7])
-    countyfix!(data, series, "Alabama", 366, [62])
-    countyfix!(data, series, "Alabama", 378, [53])
-    countyfix!(data, series, "Alabama", 382, 384, [53])
     statefix!(data, series, "Alabama", 386)
-    countyfix!(data, series, "Alabama", 396, [46])
-    countyfix!(data, series, "Alabama", 399, 400, [46])
     countyfix!(data, series, "Alabama", 406, [5, 7, 8, 15, 22, 25, 28, 36, 43, 44, 48, 58, 59, 67])
     statefix!(data, series, "Alabama", 418)
-    countyfix!(data, series, "Alabama", 447, [49])
-    countyfix!(data, series, "Alabama", 454, [49])
-    countyfix!(data, series, "Alabama", 470, [44, 59])
     statefix!(data, series, "Alabama", 478)
-    countyfix!(data, series, "Alabama", 477, [10])
-    stateweekendfix!(data, series, "Alabama", 556, 2)
-    stateweekendfix!(data, series, "Alabama", 582, 2)
 
     countyfix!(data, series, "Alaska", 180, [2, 6, 11])
-    countyfix!(data, series, "Alaska", 318, [10])
     statefix!(data, series, "Alaska", 346)
-    countyfix!(data, series, "Alaska", 349, [23, 29])
-    countyfix!(data, series, "Alaska", 355, [29])
-    countyfix!(data, series, "Alaska", 462, [23])
-    countyfix!(data, series, "Alaska", 478, [27])
-    countyfix!(data, series, "Alaska", 513, [27])
-    countyfix!(data, series, "Alaska", 518, [24, 27])
 
     statefix!(data, series, "Arizona", 216)
-    countyfix!(data, series, "Arizona", 216, 217, [13])
-    countyfix!(data, series, "Arizona", 218, [12])
-    countyfix!(data, series, "Arizona", 328, [15])
-    countyfix!(data, series, "Arizona", 327, 328, [15])
-    countyfix!(data, series, "Arizona", 409, [15])
-    countyfix!(data, series, "Arizona", 408, [1, 10, 14])
-    countyfix!(data, series, "Arizona", 409, [14])
-    countyfix!(data, series, "Arizona", 409, 410, [7])
-    countyfix!(data, series, "Arizona", 413, [10])
-    countyfix!(data, series, "Arizona", 415, [10])
     statefix!(data, series, "Arizona", 421)
     statefix!(data, series, "Arizona", 423)
     statefix!(data, series, "Arizona", 434)
-    countyfix!(data, series, "Arizona", 443, [2, 4, 5, 10])
     
-    countyfix!(data, series, "Arkansas", 89, 92, [40])
-    countyfix!(data, series, "Arkansas", 142, 143, [39])
     statefix!(data, series, "Arkansas", 206)
-    countyfix!(data, series, "Arkansas", 386, [71])
     statefix!(data, series, "Arkansas", 403, 404)
     statefix!(data, series, "Arkansas", 428)
 
     statefix!(data, series, "California", 66, 67)
-    countyfix!(data, series, "California", 107, [42])
-    countyfix!(data, series, "California", 262, [53])
-    countyfix!(data, series, "California", 266, [45])
-    countyfix!(data, series, "California", 276, [53])
     statefix!(data, series, "California", 307)
-    countyfix!(data, series, "California", 315, [28])
-    countyfix!(data, series, "California", 324, 324, [46])
-    countyfix!(data, series, "California", 336, 337, [39])
     statefix!(data, series, "California", 343, 344)
-    countyfix!(data, series, "California", 360, [34])
-    countyfix!(data, series, "California", 380, 381, [2])
     statefix!(data, series, "California", 524)
     statefix!(data, series, "California", 536)
-    countyfix!(data, series, "California", 554, [32])
 
-    for i ∈ 537:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "Connecticut", i, 2)
-    end
-    stateweekendfix!(data, series, "Connecticut", 531, 3)
-    stateweekendfix!(data, series, "Connecticut", 594, 3)
-
-    countyfix!(data, series, "Florida", 146, [20])
-    countyfix!(data, series, "Florida", 153, [29])
-    countyfix!(data, series, "Florida", 272, [20])
-    countyfix!(data, series, "Florida", 153, 154, [7])
-    countyfix!(data, series, "Florida", 156, 157, [7])
-    countyfix!(data, series, "Florida", 189, [4, 31, 63])
-    countyfix!(data, series, "Florida", 190, [20])
-    countyfix!(data, series, "Florida", 196, 197, [38])
-    countyfix!(data, series, "Florida", 290, [66])
-    countyfix!(data, series, "Florida", 321, [48])
-    countyfix!(data, series, "Florida", 334, [4])
     statefix!(data, series, "Florida", 345)
-    countyfix!(data, series, "Florida", 392, [20])
-    for i ∈ 506:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "Florida", i, 7)
-    end
-    stateweekendfix!(data, series, "Florida", 496, 3)
 
-    countyfix!(data, series, "Georgia", 174, [131])
     statefix!(data, series, "Georgia", 175)
-    countyfix!(data, series, "Georgia", 176, [131])
     statefix!(data, series, "Georgia", 181)
     statefix!(data, series, "Georgia", 286)
-    countyfix!(data, series, "Georgia", 290, [19])
-    countyfix!(data, series, "Georgia", 290, 291, [44])
-    countyfix!(data, series, "Georgia", 291, 292, [144])
-    countyfix!(data, series, "Georgia", 300, [19])
-    countyfix!(data, series, "Georgia", 302, 303, [19])
-    countyfix!(data, series, "Georgia", 307, [4])
-    countyfix!(data, series, "Georgia", 306, 307, [19])
-    for i ∈ 537:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "Georgia", i, 2)
-    end
-    stateweekendfix!(data, series, "Georgia", 531, 3)
-    stateweekendfix!(data, series, "Georgia", 594, 3)
 
-    countyfix!(data, series, "Hawaii", 233, [5])
-    countyfix!(data, series, "Hawaii", 282, [3])
-    countyfix!(data, series, "Hawaii", 293, [3])
-
-    countyfix!(data, series, "Idaho", 65, 66, [38])
-    countyfix!(data, series, "Idaho", 69, 70, [7])
-    countyfix!(data, series, "Idaho", 72, 73, [7])
     statefix!(data, series, "Idaho", 231)
-    countyfix!(data, series, "Idaho", 275, [22])
-    countyfix!(data, series, "Idaho", 374, [17])
-    countyfix!(data, series, "Idaho", 376, [17])
-    countyfix!(data, series, "Idaho", 398, 399, [19])
-    countyfix!(data, series, "Idaho", 331, 332, [12])
     statefix!(data, series, "Idaho", 332)
-    countyfix!(data, series, "Idaho", 517, 519, [5])
-    countyfix!(data, series, "Idaho", 243, [25])
 
     statefix!(data, series, "Iowa", 210)
     statefix!(data, series, "Iowa", 218)
     statefix!(data, series, "Iowa", 220, 221)
-    countyfix!(data, series, "Iowa", 413, [36])
     statefix!(data, series, "Iowa", 532, 533)
 
     statefix!(data, series, "Kansas", 121)
     statefix!(data, series, "Kansas", 206, 208)
-    countyfix!(data, series, "Kansas", 259, [73])
-    countyfix!(data, series, "Kansas", 313, [47])
-    countyfix!(data, series, "Kansas", 320, [83])
     statefix!(data, series, "Kansas", 349)
-    countyfix!(data, series, "Kansas", 357, [91])
-    countyfix!(data, series, "Kansas", 366, [40])
-    countyfix!(data, series, "Kansas", 516, [3, 5])
-    countyfix!(data, series, "Kansas", 518, [3, 5])
-    countyfix!(data, series, "Kansas", 520, [3, 5])
 
     statefix!(data, series, "Kentucky", 292)
-    countyfix!(data, series, "Kentucky", 367, 368, [15])
-    countyfix!(data, series, "Kentucky", 406, [17])
-    countyfix!(data, series, "Kentucky", 407, 408, [17])
     statefix!(data, series, "Kentucky", 430)
-    countyfix!(data, series, "Kentucky", 503, [111])
-    countyfix!(data, series, "Kentucky", 507, [118])
-    countyfix!(data, series, "Kentucky", 510, 511, [118])
-    for i ∈ 530:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "Kentucky", i, 2)
-    end
-    stateweekendfix!(data, series, "Kentucky", 531, 3)
-    stateweekendfix!(data, series, "Kentucky", 594, 3)
 
-    countyfix!(data, series, "Louisiana", 123, [20])
-    countyfix!(data, series, "Louisiana", 125, [20])
     statefix!(data, series, "Louisiana", 149)
-    countyfix!(data, series, "Louisiana", 256, 261, [12])
     countyfix!(data, series, "Louisiana", 531, [13, 21, 42, 46, 62])
-    countyfix!(data, series, "Louisiana", 538, 539, [13])
-    countyfix!(data, series, "Louisiana", 572, [63])
-    for i ∈ 530:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "Louisiana", i, 2)
-    end
-    stateweekendfix!(data, series, "Louisiana", 531, 3)
-    stateweekendfix!(data, series, "Louisiana", 588, 5)
-    stateweekendfix!(data, series, "Louisiana", 594, 3)
-    stateweekendfix!(data, series, "Louisiana", 601, 3)
-
-    for i ∈ 538:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "Maine", i, 2)
-    end
-    stateweekendfix!(data, series, "Maine", 532, 2)
-    stateweekendfix!(data, series, "Maine", 595, 3)
-
-    for i ∈ 530:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "Massachusetts", i, 2)
-    end
-    stateweekendfix!(data, series, "Massachusetts", 530, 3)
-    stateweekendfix!(data, series, "Massachusetts", 594, 3)
-
-    for i ∈ 537:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "Mississippi", i, 2)
-    end
-    stateweekendfix!(data, series, "Mississippi", 531, 3)
-    stateweekendfix!(data, series, "Mississippi", 594, 3)
 
     statefix!(data, series, "Missouri", 254)
-    countyfix!(data, series, "Missouri", 256, [50])
-    countyfix!(data, series, "Missouri", 256, 257, [10])
-    countyfix!(data, series, "Missouri", 258, [50])
     statefix!(data, series, "Missouri", 414)
     countyfix!(data, series, "Missouri", 428, 429, [23, 52, 56, 63, 82, 87, 97, 106])
     statefix!(data, series, "Missouri", 451)
     statefix!(data, series, "Missouri", 501)
 
-    countyfix!(data, series, "Montana", 278, [23])
-    countyfix!(data, series, "Montana", 280, [17])
-    countyfix!(data, series, "Montana", 297, [44])
-    countyfix!(data, series, "Montana", 532, [38])
-    countyfix!(data, series, "Montana", 572, 573, [35])
-
-    countyfix!(data, series, "New Hampshire", 83, 85, [6])
-    countyfix!(data, series, "New Hampshire", 456, [4])
-    for i ∈ 537:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "New Hampshire", i, 2)
-    end
-    stateweekendfix!(data, series, "New Hampshire", 531, 3)
-    stateweekendfix!(data, series, "New Hampshire", 594, 3)
-
     statefix!(data, series, "New York", 92, 94)
-    countyfix!(data, series, "New York", 305, [36])
-    stateweekendfix!(data, series, "New York", 585, 1)
 
-    countyfix!(data, series, "Nebraska", 162, [87])
-    countyfix!(data, series, "Nebraska", 105, 106, [60])
-    countyfix!(data, series, "Nebraska", 119, 121, [52])
-    for i ∈ 531:7:552
-        stateweekendfix!(data, series, "Nebraska", i, 2)
-    end
-    stateweekendfix!(data, series, "Nebraska", 553, 4)
-    stateweekendfix!(data, series, "Nebraska", 559, 3)
-    stateweekendfix!(data, series, "Nebraska", 566, 3)
-    stateweekendfix!(data, series, "Nebraska", 573, 5)
-    stateweekendfix!(data, series, "Nebraska", 580, 2)
-    stateweekendfix!(data, series, "Nebraska", 587, 2)
-    stateweekendfix!(data, series, "Nebraska", 594, 3)
-    stateweekendfix!(data, series, "Nebraska", 602, 3)
-    stateweekendfix!(data, series, "Nebraska", 608, 3)
-    #statefix!(data, series, "Nebraska", 612) see if this gets corrected though
-
-    countyfix!(data, series, "Nevada", 304, 306, [17])
-    countyfix!(data, series, "Nevada", 311, [17])
-    countyfix!(data, series, "Nevada", 312, [7])
-    countyfix!(data, series, "Nevada", 319, 320, [17])
-    countyfix!(data, series, "Nevada", 323, [17])
     statefix!(data, series, "Nevada", 600)
 
-    for i ∈ 523:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "North Carolina", i, 2)
-    end
-    stateweekendfix!(data, series, "North Carolina", 531, 3)
-    stateweekendfix!(data, series, "North Carolina", 594, 3)
-
-    countyfix!(data, series, "Oregon", 145, 146, [31])
-    countyfix!(data, series, "Oregon", 247, [4])
-
-    countyfix!(data, series, "Pennsylvania", 325, [47])
-    countyfix!(data, series, "Pennsylvania", 328, [47])
-    countyfix!(data, series, "Pennsylvania", 334, 342, [47])
-    countyfix!(data, series, "Pennsylvania", 348, [47])
-    countyfix!(data, series, "Pennsylvania", 355, 357, [47])
-    countyfix!(data, series, "Pennsylvania", 365, [27])
     statefix!(data, series, "Pennsylvania", 430, 431)
 
     statefix!(data, series, "Rhode Island", 574)
     statefix!(data, series, "Rhode Island", 588)
-    countyfix!(data, series, "Rhode Island", 595, 596, [1,3,5])
-    for i ∈ 530:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "Rhode Island", i, 2)
-    end
-    stateweekendfix!(data, series, "Rhode Island", 566, 3)
-    stateweekendfix!(data, series, "Rhode Island", 594, 3)
 
-    countyfix!(data, series, "South Carolina", 232, 233, [31])
     countyfix!(data, series, "South Carolina", 244, [2, 6, 19, 35])
-    countyfix!(data, series, "South Carolina", 293, 294, [31])
-    for i ∈ 530:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "South Carolina", i, 2)
-    end
 
-    countyfix!(data, series, "Tennessee", 92, 93, [4, 48])
-    countyfix!(data, series, "Tennessee", 100, 101, [85])
-    countyfix!(data, series, "Tennessee", 111, 113, [48])
-    countyfix!(data, series, "Tennessee", 132, 133, [48])
-    countyfix!(data, series, "Tennessee", 139, 141, [48])
-    countyfix!(data, series, "Tennessee", 222, [91])
-    countyfix!(data, series, "Tennessee", 231, [91])
     countyfix!(data, series, "Tennessee", 292, 293, [9, 20, 29, 34])
-    countyfix!(data, series, "Tennessee", 385, [44])
     statefix!(data, series, "Tennessee", 385)
-    for i ∈ 530:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "Tennessee", i, 2)
-    end
-    stateweekendfix!(data, series, "Tennessee", 594, 3)
     
     countyfix!(data, series, "Texas", 113, [113])
     countyfix!(data, series, "Texas", 147, [1])
     countyfix!(data, series, "Texas", 240, [1])
     countyfix!(data, series, "Texas", 243, [1, 7, 10, 29, 64, 69, 82, 86, 89, 94, 120, 128, 130, 133, 136, 143, 193, 247, 254])
     statefix!(data, series, "Texas", 282)
-    countyfix!(data, series, "Texas", 282, 284, [206])
     statefix!(data, series, "Texas", 284)
-    statefix!(data, series, "Texas", 327)
-    statefix!(data, series, "Texas", 326)
-    countyfix!(data, series, "Texas", 290, [38])
-    countyfix!(data, series, "Texas", 326, 327, [41, 48])
+    statefix!(data, series, "Texas", 326, 327)
     countyfix!(data, series, "Texas", 327, 328, [7])
-    countyfix!(data, series, "Texas", 350, [207, 216, 218])
-    countyfix!(data, series, "Texas", 352, [218])
-    countyfix!(data, series, "Texas", 371, 373, [22])
     statefix!(data, series, "Texas", 376)
     statefix!(data, series, "Texas", 378)
-    countyfix!(data, series, "Texas", 380, [115])
-    countyfix!(data, series, "Texas", 384, 387, [206])
-    countyfix!(data, series, "Texas", 385, 388, [208])
-    countyfix!(data, series, "Texas", 405, [208])
-    countyfix!(data, series, "Texas", 413, [49])
-    countyfix!(data, series, "Texas", 405, [208])
-    countyfix!(data, series, "Texas", 413, 414, [24])
-    countyfix!(data, series, "Texas", 421, [17, 41])
-    countyfix!(data, series, "Texas", 428, [41])
-    countyfix!(data, series, "Texas", 408, [122])
-    countyfix!(data, series, "Texas", 410, 450, [122])
-    countyfix!(data, series, "Texas", 435, 436, [135, 138])
-    countyfix!(data, series, "Texas", 443, [138])
-    countyfix!(data, series, "Texas", 504, 505, [14])
     statefix!(data, series, "Texas", 507)
     statefix!(data, series, "Texas", 514)
     statefix!(data, series, "Texas", 518)
     statefix!(data, series, "Texas", 521)
     statefix!(data, series, "Texas", 524)
-        
-    countyfix!(data, series, "Washington", 538, [13])
+
     statefix!(data, series, "Washington", 547, 550)
 
-    countyfix!(data, series, "Wisconsin", 72, 74, [47])
-    countyfix!(data, series, "Wisconsin", 226, 227, [19])
     countyfix!(data, series, "Wisconsin", 238, 239, [57:60...])
     statefix!(data, series, "Wisconsin", 269, 270)
     statefix!(data, series, "Wisconsin", 271)
-    countyfix!(data, series, "Wisconsin", 307, [19])
-
-    countyfix!(data, series, "Wyoming", 332, [10])
-    countyfix!(data, series, "Wyoming", 344, [10])
-    countyfix!(data, series, "Wyoming", 400, [10])
 
     statefix!(data, series, "Utah", 67, 68)
-    countyfix!(data, series, "Utah", 86, 88, [27])
     statefix!(data, series, "Utah", 86)
     statefix!(data, series, "Utah", 88)
     statefix!(data, series, "Utah", 309, 310)
-    countyfix!(data, series, "Utah", 387, [14])
-    countyfix!(data, series, "Utah", 389, [14])
-    countyfix!(data, series, "Utah", 480, [15])
-    countyfix!(data, series, "Utah", 504, 505, [12])
-
-    countyfix!(data, series, "Virginia", 392, 394, [108])
-    countyfix!(data, series, "Virginia", 395, [109])
-    countyfix!(data, series, "Virginia", 398, 400, [29])
-    countyfix!(data, series, "Virginia", 522, [74])
-    countyfix!(data, series, "Virginia", 531, 533, [105])
-    for i ∈ 537:7:lastindex(datarange) - 1
-        stateweekendfix!(data, series, "Virginia", i, 2)
-    end
-    stateweekendfix!(data, series, "Virginia", 531, 3)
-    stateweekendfix!(data, series, "Virginia", 594, 3)
+end
 
     # consider:
     # - add flickering
     # - algorithm to dampen huge peaks based on how flat surrounding is
-    # - algorithm to automatically move data over weekends
-    # - algorithm to detect up/down corrections
-    # - algorithm to distribute lone downspikes
-
-end
 
 data = loadcountydata()
 colnames = propertynames(data)
@@ -651,9 +423,13 @@ preparedata!(data, datarange)
 series = Array{Float64, 2}(data[!, datarange])
 series = diff(series, dims = 2)
 series ./= data.POPESTIMATE2019
-fixspikes!(data, series, datarange)
+fixnegatives!(series)
+fixweekendspikes!(series)
+dampenspikes!(series)
+fixspikes!(data, series)
 seriesavg = hcat(sma.(eachrow(series), 7)...)
 seriesavg ./= maximum(seriesavg, dims = 1)
+seriesavg[isnan.(seriesavg)] .= 0
 
 alaskageoms = data.geometry[data.Province_State .== "Alaska"]
 hawaiigeoms = data.geometry[data.Province_State .== "Hawaii"]
@@ -697,15 +473,15 @@ anim = Plots.Animation()
 date = Date(names(data)[datarange[end]], dateformat"mm/dd/yy") + Year(2000) - Day(length(eachrow(lower48colors)) - 1)
 for i ∈ 1:length(eachrow(lower48colors))
     println("Day $i")
-    lower48plot = plot(lower48geoms, fillcolor=permutedims(lower48colors[i, :]), size=(2048, 1280),
+    lower48plot = plot(lower48geoms, fillcolor=permutedims(@view lower48colors[i, :]), size=(2048, 1280),
         grid=false, showaxis=false, ticks=false, aspect_ratio=1.2, title="United States COVID-19 Hot Spots\nNicholas C Bauer PhD | Twitter: @bioturbonick",
         titlefontcolor=:white, background_color=:black, linecolor=grad[0.0])
     annotate!([(-75,30.75, ("$date", 36, :white))])
-    plot!(lower48plot, alaskageoms, fillcolor=permutedims(alaskacolors[i, :]),
+    plot!(lower48plot, alaskageoms, fillcolor=permutedims(@view alaskacolors[i, :]),
         grid=false, showaxis=false, ticks=false, xlims=(-180,-130), ylims=(51, 78), aspect_ratio=2,
         linecolor=grad[0.0],
         inset=(1, bbox(0.0, 0.0, 0.3, 0.3, :bottom, :left)), subplot=2)
-    plot!(lower48plot, hawaiigeoms, fillcolor=permutedims(hawaiicolors[i, :]),
+    plot!(lower48plot, hawaiigeoms, fillcolor=permutedims(@view hawaiicolors[i, :]),
         grid=false, showaxis=false, ticks=false, xlims=(-160, -154), ylims=(18, 23),
         linecolor=grad[0.0],
         inset=(1, bbox(0.25, 0.0, 0.2, 0.2, :bottom, :left)), subplot=3)
