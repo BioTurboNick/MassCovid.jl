@@ -306,9 +306,9 @@ fixnegatives!(series)
 fixweekendspikes!(series)
 dampenspikes!(series)
 #fixspikes!(data, series, datarange)
-seriesavg = hcat(sma.(eachrow(series), 28)...)
-seriesavg ./= maximum(seriesavg, dims = 1)
-seriesavg[isnan.(seriesavg)] .= 0
+seriessum = cumsum(permutedims(series), dims = 1)
+seriessum ./= maximum(seriessum)
+seriessum[isnan.(seriessum)] .= 0
 
 alaskageoms = data.geometry[data.Province_State .== "Alaska"]
 hawaiigeoms = data.geometry[data.Province_State .== "Hawaii"]
@@ -317,7 +317,7 @@ lower48geoms = data.geometry[data.Province_State .∉ Ref(["Alaska", "Hawaii", "
 
 #grad = cgrad([RGB(1.0, 0.9, 0.9), RGB(1.0, 0.2, 0.2), RGB(0x8a/255, 0x03/255, 0x03/255)]) # for white map
 grad = cgrad([RGB(0.05, 0, 0), RGB(0x48/255, 0, 0), RGB(0x8a/255, 0x03/255, 0x03/255)])
-colors = map(x -> grad[x], seriesavg)
+colors = map(x -> grad[x], seriessum)
 alaskacolors = colors[:, data.Province_State .== "Alaska"]
 hawaiicolors = colors[:, data.Province_State .== "Hawaii"]
 lower48colors = colors[:, data.Province_State .∉ Ref(["Alaska", "Hawaii", "Puerto Rico"])]
@@ -366,9 +366,13 @@ for i ∈ 1:length(eachrow(lower48colors))
         linecolor=grad[0.0],
         inset=(1, bbox(0.25, 0.0, 0.2, 0.2, :bottom, :left)), subplot=3)
     Plots.frame(anim)
+    empty!(Plots.sp_clims)
+    empty!(Plots.series_clims)
     date += Day(1)
 end
 for i = 1:20 # insert 20 more of the same frame at end
     Plots.frame(anim)
 end
 mp4(anim, joinpath("output", "us_animation_map_deaths.mp4"), fps = 7)
+
+# What's going on with Utah?

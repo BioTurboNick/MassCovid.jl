@@ -365,7 +365,7 @@ function fixspikes!(data, series)
 
     statefix!(data, series, "Missouri", 254)
     statefix!(data, series, "Missouri", 414)
-    countyfix!(data, series, "Missouri", 428, 429, [23, 52, 56, 63, 82, 87, 97, 106])
+    countyfix!(data, series, "Missouri", 427, 429, [23, 52, 56, 63, 82, 87, 97, 106])
     statefix!(data, series, "Missouri", 451)
     statefix!(data, series, "Missouri", 501)
 
@@ -386,7 +386,7 @@ function fixspikes!(data, series)
     countyfix!(data, series, "Texas", 113, [113])
     countyfix!(data, series, "Texas", 147, [1])
     countyfix!(data, series, "Texas", 240, [1])
-    countyfix!(data, series, "Texas", 243, [1, 7, 10, 29, 64, 69, 82, 86, 89, 94, 120, 128, 130, 133, 136, 143, 193, 247, 254])
+
     statefix!(data, series, "Texas", 282)
     statefix!(data, series, "Texas", 284)
     statefix!(data, series, "Texas", 326, 327)
@@ -424,10 +424,10 @@ series = Array{Float64, 2}(data[!, datarange])
 series = diff(series, dims = 2)
 series ./= data.POPESTIMATE2019
 fixnegatives!(series)
+fixspikes!(data, series)
 fixweekendspikes!(series)
 dampenspikes!(series)
-fixspikes!(data, series)
-seriesavg = hcat(sma.(eachrow(series), 7)...)
+seriesavg = reduce(hcat, sma.(eachrow(series), 7))
 seriesavg ./= maximum(seriesavg, dims = 1)
 seriesavg[isnan.(seriesavg)] .= 0
 
