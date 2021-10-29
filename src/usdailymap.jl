@@ -487,6 +487,8 @@ for i ∈ 1:length(eachrow(lower48colors))
         inset=(1, bbox(0.25, 0.0, 0.2, 0.2, :bottom, :left)), subplot=3)
     Plots.frame(anim)
     date += Day(1)
+    empty!(Plots.sp_clims)
+    empty!(Plots.series_clims)
 end
 for i = 1:20 # insert 20 more of the same frame at end
     Plots.frame(anim)

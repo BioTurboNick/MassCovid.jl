@@ -306,6 +306,9 @@ fixnegatives!(series)
 fixweekendspikes!(series)
 dampenspikes!(series)
 #fixspikes!(data, series, datarange)
+seriesavg = reduce(hcat, sma.(eachrow(series), 28))
+seriesavg ./= maximum(seriesavg)
+seriesavg[isnan.(seriesavg)] .= 0
 seriessum = cumsum(permutedims(series), dims = 1)
 seriessum ./= maximum(seriessum)
 seriessum[isnan.(seriessum)] .= 0
@@ -315,8 +318,7 @@ hawaiigeoms = data.geometry[data.Province_State .== "Hawaii"]
 #puertoricogeoms = data.geometry[data.Province_State .== "Puerto Rico"]
 lower48geoms = data.geometry[data.Province_State .∉ Ref(["Alaska", "Hawaii", "Puerto Rico"])]
 
-#grad = cgrad([RGB(1.0, 0.9, 0.9), RGB(1.0, 0.2, 0.2), RGB(0x8a/255, 0x03/255, 0x03/255)]) # for white map
-grad = cgrad([RGB(0.05, 0, 0), RGB(0x48/255, 0, 0), RGB(0x8a/255, 0x03/255, 0x03/255)])
+grad = cgrad([RGB(0.05, 0, 0), RGB(0x48/255, 0, 0), RGB(0x8a/255, 0x03/255, 0x03/255), RGB(0.9, 0x05/255, 0x05/255)])
 colors = map(x -> grad[x], seriessum)
 alaskacolors = colors[:, data.Province_State .== "Alaska"]
 hawaiicolors = colors[:, data.Province_State .== "Hawaii"]
