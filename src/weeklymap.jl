@@ -26,6 +26,7 @@ function downloadweeklyreport2(datestring)
 end
 
 function loadweekdata(path, date)
+    date == Date("november-12-2021", dateformat"U-d-yyyy") && (date = Date("november-11-2021", dateformat"U-d-yyyy"))
     data = XLSX.readxlsx(path)
 
     if XLSX.hassheet(data, "Weekly_City_Town")
@@ -99,7 +100,9 @@ datefmt = dateformat"U-d-yyyy"
 weeks = [Date("august-12-2020", datefmt):Day(7):Date("october-14-2020", datefmt);
          Date("october-22-2020", datefmt):Day(7):Date("november-19-2020", datefmt);
          Date("november-27-2020", datefmt);
-         Date("december-3-2020", datefmt):Day(7):today()]
+         Date("december-3-2020", datefmt):Day(7):Date("november-4-2021", datefmt);
+         Date("november-12-2021", datefmt);
+         Date("november-18-2021", datefmt):Day(7):today()]
 
 labels = ["0 total",
           "<5 total",

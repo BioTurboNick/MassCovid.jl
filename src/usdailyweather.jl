@@ -119,7 +119,7 @@ function loadcountyweatherdata(countygeoms)
     stations = nothing
     if !isfile(pathstations)
         Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt", pathstations)
-        stations = CSV.read(pathstations, DataFrame, delim = " ", ignorerepeated = true, select = 1:4)
+        stations = CSV.read(pathstations, DataFrame, delim = " ", ignorerepeated = true, select = 1:4, header = false, silencewarnings = true)
         rename!(stations, 1 => "ID", 2 => "LATITUDE", 3 => "LONGITUDE", 4 => "ELEVATION")
         minlong, maxlong, minlat, maxlat = let
             minlong = minlat = Inf
@@ -144,7 +144,7 @@ function loadcountyweatherdata(countygeoms)
                 end
             else
                 false
-            end
+            end # something wrong with this filter, I'm getting a slice of canada too?
         end
         CSV.write(pathstations, stations)
     end
