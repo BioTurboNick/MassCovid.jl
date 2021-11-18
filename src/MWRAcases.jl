@@ -1,4 +1,5 @@
 using Dates
+using Downloads
 using Shapefile
 using Plots
 using XLSX
@@ -15,13 +16,13 @@ end
 function downloadweeklyreport(datestring)
     path = joinpath("input","$(datestring).xlsx")
     ispath(path) && return path
-    download("https://www.mass.gov/doc/weekly-public-health-report-raw-data-$(datestring)/download", path)
+    Downloads.download("https://www.mass.gov/doc/weekly-public-health-report-raw-data-$(datestring)/download", path)
 end
 
 function downloadweeklyreport2(datestring)
     path = joinpath("input","$(datestring).xlsx")
     ispath(path) && return path
-    download("https://www.mass.gov/doc/covid-19-raw-data-$(datestring)/download", path)
+    Downloads.download("https://www.mass.gov/doc/covid-19-raw-data-$(datestring)/download", path)
 end
 
 function loadweekdata(path, date)
