@@ -320,6 +320,7 @@ function fixspikes!(data, series)
     countyfix!(data, series, "Alabama", 406, [5, 7, 8, 15, 22, 25, 28, 36, 43, 44, 48, 58, 59, 67])
     statefix!(data, series, "Alabama", 418)
     statefix!(data, series, "Alabama", 478)
+    statefix!(data, series, "Alabama", 644, 645)
 
     countyfix!(data, series, "Alaska", 180, [2, 6, 11])
     statefix!(data, series, "Alaska", 346)
@@ -469,6 +470,9 @@ lower48colors = colors[:, data.Province_State .∉ Ref(["Alaska", "Hawaii", "Pue
     end
 end
 
+
+## New Hampshire reporting anomaly (no cases then big dump)
+
 anim = Plots.Animation()
 date = Date(names(data)[datarange[end]], dateformat"mm/dd/yy") + Year(2000) - Day(length(eachrow(lower48colors)) - 1)
 for i ∈ 1:length(eachrow(lower48colors))
@@ -487,8 +491,6 @@ for i ∈ 1:length(eachrow(lower48colors))
         inset=(1, bbox(0.25, 0.0, 0.2, 0.2, :bottom, :left)), subplot=3)
     Plots.frame(anim)
     date += Day(1)
-    empty!(Plots.sp_clims)
-    empty!(Plots.series_clims)
 end
 for i = 1:20 # insert 20 more of the same frame at end
     Plots.frame(anim)
