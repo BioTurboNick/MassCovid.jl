@@ -523,8 +523,9 @@ end
 sort!(data, :Combined_Key)
 filter!(:Combined_Key => x -> x ∈ weatherdata.Combined_Key, data)
 
-# limit to same days
-weatherdata = filter(:DATE => >(Date("20200121", dateformat"yyyymmdd")), weatherdata)
+# limit to after first wave
+weatherdata = filter(:DATE => >(Date("20200430", dateformat"yyyymmdd")), weatherdata)
+datarange = findfirst(==(Symbol("4/30/20")), colnames):last(datarange)
 
 # extract temperature series
 ncounties = length(unique(weatherdata.Combined_Key))
@@ -550,12 +551,22 @@ seriesavg ./= permutedims(data.POPESTIMATE2019[atleast100])
 seriesavg ./= maximum(seriesavg, dims = 1)
 # seriesavg[isnan.(seriesavg)] .= 0
 
-seriesavgdiff = diff(seriesavg, dims = 1)
-
 tminseriesavg = reduce(hcat, sma.(eachrow(tminseries), 14))
 tavgseriesavg = reduce(hcat, sma.(eachrow(tavgseries), 14))
 tmaxseriesavg = reduce(hcat, sma.(eachrow(tmaxseries), 14))
 
+function plotme(i)
+    p = plot(seriesavg[:, i], linewidth = 4)
+    p1 = twinx()
+    plot!(p1, tmaxseriesavg[:,i], linecolor = :red, linewidth = 4, ylims = (-30, 50))
+    plot!(p1, tminseriesavg[:,i], linecolor = :red, linewidth = 4, ylims = (-30, 50))
+    hline!(p1, [0, 25], linecolor = :green, linewidth = 4)
+    plot!(ticks = :none, legend = :none, xwiden = false)
+end
+
+allplots = [plotme(i) for i ∈ 1:count(atleast100)]
+plot(allplots[(1:56) .+ 56 * 2]..., size=(2048,2048))
+savefig(joinpath("output", "topcounties_weather.png"))
 
 alaskageoms = data.geometry[data.Province_State .== "Alaska"]
 hawaiigeoms = data.geometry[data.Province_State .== "Hawaii"]
