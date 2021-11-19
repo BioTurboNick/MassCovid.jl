@@ -523,6 +523,9 @@ end
 sort!(data, :Combined_Key)
 filter!(:Combined_Key => x -> x ∈ weatherdata.Combined_Key, data)
 
+# limit to same days
+weatherdata = filter(:DATE => >(Date("20200121", dateformat"yyyymmdd")), weatherdata)
+
 # extract temperature series
 ncounties = length(unique(weatherdata.Combined_Key))
 nobservations = length(weatherdata[!, :TMIN]) ÷ ncounties
@@ -530,19 +533,24 @@ tminseries = permutedims(reshape(weatherdata[!, :TMIN], nobservations, ncounties
 tmaxseries = permutedims(reshape(weatherdata[!, :TMAX], nobservations, ncounties))
 tavgseries = permutedims(reshape(weatherdata[!, :TAVG], nobservations, ncounties))
 
-# extract cases series
+# extract cases series; only consider counties that saw at least 100 cases/day on at least one day after averaging
 series = Array{Float64, 2}(data[!, datarange])
 series = diff(series, dims = 2)
-series ./= data.POPESTIMATE2019
 fixnegatives!(series)
 fixweekendspikes!(series)
 dampenspikes!(series)
 seriesavg = reduce(hcat, sma.(eachrow(series), 7))
-seriesavg ./= maximum(seriesavg, dims = 1)
-seriesavg[isnan.(seriesavg)] .= 0
+atleast100 = (maximum(seriesavg, dims = 1) .> 100) |> vec
+seriesavg = seriesavg[:, atleast100]
+tminseries = tminseries[atleast100, :]
+tmaxseries = tmaxseries[atleast100, :]
+tavgseries = tavgseries[atleast100, :]
 
-seriesavgdiff = diff(seriesavg, dims = 1) ./ seriesavg[1:end - 1, :]
-seriesavgdiff[isnan.(seriesavgdiff)] .= 0
+seriesavg ./= permutedims(data.POPESTIMATE2019[atleast100])
+seriesavg ./= maximum(seriesavg, dims = 1)
+# seriesavg[isnan.(seriesavg)] .= 0
+
+seriesavgdiff = diff(seriesavg, dims = 1)
 
 tminseriesavg = reduce(hcat, sma.(eachrow(tminseries), 14))
 tavgseriesavg = reduce(hcat, sma.(eachrow(tavgseries), 14))
