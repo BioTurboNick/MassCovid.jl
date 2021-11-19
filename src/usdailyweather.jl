@@ -1,4 +1,4 @@
-using GZip
+using CodecZlib
 using DataFrames
 using Dates
 using Downloads
@@ -114,7 +114,7 @@ function loadcountydata()
     return data
 end
 
-function loadcountyweatherdata(countygeoms)
+function loadcountyweatherdata(data)
     pathstations = joinpath("input", "weatherstations.txt")
     stations = nothing
     if !isfile(pathstations)
@@ -124,7 +124,7 @@ function loadcountyweatherdata(countygeoms)
         minlong, maxlong, minlat, maxlat = let
             minlong = minlat = Inf
             maxlong = maxlat = -Inf
-            for g ∈ countygeoms
+            for g ∈ data.geometry
                 for p ∈ g.points
                     p.x < 0 || continue # ignore the Alaska islands over the date line
                     p.x < minlong && (minlong = p.x)
@@ -135,37 +135,111 @@ function loadcountyweatherdata(countygeoms)
             end
             minlong, maxlong, minlat, maxlat
         end
-        filter!(stations) do s # keep stations inside the US
-            if minlong ≤ s.LONGITUDE ≤ maxlong && minlat ≤ s.LATITUDE ≤ maxlat
-                any(countygeoms) do g
-                    points = [(p.x, p.y) for p ∈ g.points]
-                    push!(points, points[1])
-                    inpolygon((s.LONGITUDE, s.LATITUDE), points) != 0
-                end
-            else
-                false
-            end # something wrong with this filter, I'm getting a slice of canada too?
+        alaskaminlong, alaskamaxlong, alaskaminlat, alaskamaxlat = let 
+            minlong = minlat = Inf
+            maxlong = maxlat = -Inf
+            g = data[data.Admin2 .== "Aleutians West", :geometry][1]
+            for p ∈ g.points
+                p.x > 0 || continue # consider only points to the west of the dateline
+                p.x < minlong && (minlong = p.x)
+                p.x > maxlong && (maxlong = p.x)
+                p.y < minlat && (minlat = p.y)
+                p.y > maxlat && (maxlat = p.y)
+            end
+            minlong, maxlong, minlat, maxlat
         end
+
+        filter!(stations) do s
+            minlong ≤ s.LONGITUDE ≤ maxlong && minlat ≤ s.LATITUDE ≤ maxlat ||
+                alaskaminlong ≤ s.LONGITUDE ≤ alaskamaxlong && alaskaminlat ≤ s.LATITUDE ≤ alaskamaxlat
+        end
+
+        key = Vector{Union{Missing, String}}(undef, length(stations.ID))
+        key .= missing
+        for (j, g) ∈ enumerate(data.geometry)
+            if data[j, :Admin2] == "Aleutians West"
+                pointswest = [(p.x, p.y) for p ∈ filter(x -> x.x > 0, g.points)]
+                push!(pointswest, pointswest[1])
+                points =  [(p.x, p.y) for p ∈ filter(x -> x.x < 0, g.points)]
+                push!(points, points[1])
+            else
+                pointswest = []
+                points = [(p.x, p.y) for p ∈ g.points]
+                push!(points, points[1])
+            end
+
+            for (i, s) ∈ enumerate(eachrow(stations))
+                ismissing(key[i]) || continue
+                
+                if data[j, :Admin2] == "Aleutians West"
+                    if inpolygon((s.LONGITUDE, s.LATITUDE), pointswest) != 0
+                        key[i] = data[j, :Combined_Key]
+                    elseif inpolygon((s.LONGITUDE, s.LATITUDE), points) != 0
+                        key[i] = data[j, :Combined_Key]
+                    end
+                else
+                    if inpolygon((s.LONGITUDE, s.LATITUDE), points) != 0
+                        key[i] = data[j, :Combined_Key]
+                    end
+                end
+            end
+        end
+        stations[!, :Combined_Key] = key
+        filter!(:Combined_Key => !ismissing, stations)
+
         CSV.write(pathstations, stations)
+    else
+        stations = CSV.read(pathstations, DataFrame)
     end
-    path2020 = joinpath("input", "weather_2020.csv.gz")
-    if !isfile(path2020)
-        Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/2020.csv.gz", path2020)
-    end
-    path2021 = joinpath("input", "weather_2021.csv.gz")
-    Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/2021.csv.gz", path2021)
 
-    header = ["ID", "DATE", "ELEMENT", "VALUE", "MFLAG", "QFLAG", "SFLAG", "TIME"]
+    weatherpath = joinpath("input", "weather.csv")
     weatherdata = nothing
-    GZip.gzopen(path2020) do f
-        global weatherdata = CSV.read(f, DataFrame; header) 
-    end
-    GZip.gzopen(path2021) do f
-        append!(weatherdata, CSV.read(f, DataFrame; header))
-    end
+    if !isfile(weatherpath)
+        path2020 = joinpath("input", "weather_2020.csv.gz")
+        if !isfile(path2020)
+            Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/2020.csv.gz", path2020)
+        end
+        path2021 = joinpath("input", "weather_2021.csv.gz")
+        Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/2021.csv.gz", path2021)
 
-    filter!(:ELEMENT => x -> x ∈ ("TMIN", "TMAX"), weatherdata) # retain temperature records
-    filter!(:ID => x -> x ∈ stations.ID, weatherdata) # retain US temperature records
+        header = ["ID", "DATE", "ELEMENT", "VALUE", "MFLAG", "QFLAG", "SFLAG", "TIME"]
+        weatherdata = nothing
+        open(path2020) do f
+            stream = GzipDecompressorStream(f)
+            global weatherdata = CSV.read(stream, DataFrame; header)
+            close(stream)
+        end
+        open(path2021) do f
+            stream = GzipDecompressorStream(f)
+            append!(weatherdata, CSV.read(stream, DataFrame; header))
+            close(stream)
+        end
+
+        filter!(:ELEMENT => x -> x ∈ ("TMIN", "TAVG", "TMAX"), weatherdata) # retain temperature records
+        filter!(:QFLAG => ismissing, weatherdata) # retain temperature records without quality flags
+
+        tmindata = filter(:ELEMENT => ==("TMIN"), weatherdata)
+        rename!(tmindata, :VALUE => :TMIN)
+        tavgdata = filter(:ELEMENT => ==("TAVG"), weatherdata)
+        rename!(tavgdata, :VALUE => :TAVG)
+        tmaxdata = filter(:ELEMENT => ==("TMAX"), weatherdata)
+        rename!(tmaxdata, :VALUE => :TMAX)
+        weatherdata = tmindata
+        weatherdata = outerjoin(weatherdata, tavgdata[!, [:ID, :DATE, :TAVG]], on = [:ID, :DATE])
+        weatherdata = outerjoin(weatherdata, tmaxdata[!, [:ID, :DATE, :TMAX]], on = [:ID, :DATE])
+        filter!(x -> !ismissing(x.TMIN) && !ismissing(x.TAVG) && !ismissing(x.TMAX), weatherdata) # retain complete temperature records
+        filter!(:ID => x -> x ∈ stations.ID, weatherdata) # retain US temperature records
+
+        # average values within a county
+        CSV.write(weatherpath, weatherdata)
+    else
+        weatherdata = CSV.read(weatherpath, DataFrame)
+    end
+    # combine counties
+    weatherdata = innerjoin(weatherdata, stations[!, [:ID, :Combined_Key, :ELEVATION]], on = [:ID])
+    groupedweatherdata = groupby(weatherdata, [:Combined_Key, :DATE])
+    # should select stations with the lowest elevation in a county
+    combine(groupedweatherdata, :TMIN => mean => :TMIN, :TAVG => mean => :TAVG, :TMAX => mean => :TMAX)
 end
 
 selectcounty(data, statename, countyname) =
@@ -217,6 +291,7 @@ function preparedata!(data, datarange)
     akbblprow = selectcounty(data, "Alaska", "Bristol Bay plus Lake and Peninsula") # Bristol Bay, Lake and Peninsula
     addcountycases!(data, "Alaska", "Bristol Bay", akbblprow, akpop, datarange)
     addcountycases!(data, "Alaska", "Lake and Peninsula", akbblprow, akpop, datarange)
+    data.Combined_Key[data.Admin2 .== "Lake and Peninsula"] = "Lake and Peninsula, Alaska, US"
     delete!(data, selectcounties(data, "Alaska", ["Bristol Bay plus Lake and Peninsula", "Chugach", "Copper River"]))
 
     # Massachusetts
@@ -478,6 +553,8 @@ datarange = findfirst(==(Symbol("1/22/20")), colnames):findfirst(==(:SUMLEV), co
 preparedata!(data, datarange)
 
 # load weather data here
+weatherdata = loadweatherdata(data)
+
 
 series = Array{Float64, 2}(data[!, datarange])
 series = diff(series, dims = 2)
