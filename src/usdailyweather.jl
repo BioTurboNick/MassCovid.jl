@@ -230,16 +230,31 @@ function loadcountyweatherdata(data)
         filter!(x -> !ismissing(x.TMIN) && !ismissing(x.TAVG) && !ismissing(x.TMAX), weatherdata) # retain complete temperature records
         filter!(:ID => x -> x ∈ stations.ID, weatherdata) # retain US temperature records
 
-        # average values within a county
+        # combine counties
+        weatherdata = innerjoin(weatherdata, stations[!, [:ID, :Combined_Key, :ELEVATION]], on = [:ID])
+        groupedweatherdata = groupby(weatherdata, [:Combined_Key, :DATE])
+        # should select stations with the lowest elevation in a county
+        weatherdata = combine(groupedweatherdata, :TMIN => mean => :TMIN, :TAVG => mean => :TAVG, :TMAX => mean => :TMAX, :ELEVATION => mean => :ELEVATION)
+        transform!(weatherdata, :DATE => (x -> Date.(string.(x), dateformat"yyyymmdd")) => :DATE)
+        transform!(weatherdata, :TMIN => (x -> x / 10) => :TMIN)
+        transform!(weatherdata, :TMAX => (x -> x / 10) => :TMAX)
+        transform!(weatherdata, :TAVG => (x -> x / 10) => :TAVG)
+
+        # insert missing days
+        groupedweatherdata = groupby(copy(weatherdata), [:Combined_Key])
+        for g ∈ groupedweatherdata
+            missingdates = setdiff(Date("20200101", dateformat"yyyymmdd"):Day(1):today(), sort(g.DATE))
+            for d ∈ missingdates
+                push!(weatherdata, (g.Combined_Key[1], d, NaN, NaN, NaN, NaN))
+            end
+        end
+
         CSV.write(weatherpath, weatherdata)
     else
         weatherdata = CSV.read(weatherpath, DataFrame)
     end
-    # combine counties
-    weatherdata = innerjoin(weatherdata, stations[!, [:ID, :Combined_Key, :ELEVATION]], on = [:ID])
-    groupedweatherdata = groupby(weatherdata, [:Combined_Key, :DATE])
-    # should select stations with the lowest elevation in a county
-    combine(groupedweatherdata, :TMIN => mean => :TMIN, :TAVG => mean => :TAVG, :TMAX => mean => :TMAX)
+    
+    return weatherdata
 end
 
 selectcounty(data, statename, countyname) =
@@ -291,7 +306,7 @@ function preparedata!(data, datarange)
     akbblprow = selectcounty(data, "Alaska", "Bristol Bay plus Lake and Peninsula") # Bristol Bay, Lake and Peninsula
     addcountycases!(data, "Alaska", "Bristol Bay", akbblprow, akpop, datarange)
     addcountycases!(data, "Alaska", "Lake and Peninsula", akbblprow, akpop, datarange)
-    data.Combined_Key[data.Admin2 .== "Lake and Peninsula"] = "Lake and Peninsula, Alaska, US"
+    data.Combined_Key[data.Admin2 .== "Lake and Peninsula"] .= "Lake and Peninsula, Alaska, US"
     delete!(data, selectcounties(data, "Alaska", ["Bristol Bay plus Lake and Peninsula", "Chugach", "Copper River"]))
 
     # Massachusetts
@@ -366,26 +381,6 @@ function preparedata!(data, datarange)
     return nothing
 end
 
-# adjust for data jumps
-function countyfix!(data, series, statename, dayindex, counties)
-    selector = selectstatecounties(data, statename)[counties]
-    series[selector, [dayindex;]] .= mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
-end
-function countyfix!(data, series, statename, startindex, stopindex, counties)
-    selector = selectstatecounties(data, statename)[counties]
-    range = startindex:stopindex
-    series[selector, range] .= mean(series[selector, [startindex - 1, stopindex + 1]], dims = 2)
-end
-function statefix!(data, series, statename, start, stop)
-    selector = selectstatecounties(data, statename)
-    range = start:stop
-    series[selector, range] .= mean(series[selector, [start - 1, stop + 1]], dims = 2)
-end
-function statefix!(data, series, statename, dayindex)
-    selector = selectstatecounties(data, statename)
-    series[selector, [dayindex;]] .= mean(series[selector, [dayindex - 1, dayindex + 1]], dims = 2)
-end
-
 function fixnegatives!(series)
     # distribute negatives by canceling out recent positives
     for row ∈ eachrow(series)
@@ -446,103 +441,6 @@ function dampenspikes!(series)
     end
 end
 
-function fixspikes!(data, series)
-    statefix!(data, series, "Alabama", 325)
-    statefix!(data, series, "Alabama", 386)
-    countyfix!(data, series, "Alabama", 406, [5, 7, 8, 15, 22, 25, 28, 36, 43, 44, 48, 58, 59, 67])
-    statefix!(data, series, "Alabama", 418)
-    statefix!(data, series, "Alabama", 478)
-
-    countyfix!(data, series, "Alaska", 180, [2, 6, 11])
-    statefix!(data, series, "Alaska", 346)
-
-    statefix!(data, series, "Arizona", 216)
-    statefix!(data, series, "Arizona", 421)
-    statefix!(data, series, "Arizona", 423)
-    statefix!(data, series, "Arizona", 434)
-    
-    statefix!(data, series, "Arkansas", 206)
-    statefix!(data, series, "Arkansas", 403, 404)
-    statefix!(data, series, "Arkansas", 428)
-
-    statefix!(data, series, "California", 66, 67)
-    statefix!(data, series, "California", 307)
-    statefix!(data, series, "California", 343, 344)
-    statefix!(data, series, "California", 524)
-    statefix!(data, series, "California", 536)
-
-    statefix!(data, series, "Florida", 345)
-
-    statefix!(data, series, "Georgia", 175)
-    statefix!(data, series, "Georgia", 181)
-    statefix!(data, series, "Georgia", 286)
-
-    statefix!(data, series, "Idaho", 231)
-    statefix!(data, series, "Idaho", 332)
-
-    statefix!(data, series, "Iowa", 210)
-    statefix!(data, series, "Iowa", 218)
-    statefix!(data, series, "Iowa", 220, 221)
-    statefix!(data, series, "Iowa", 532, 533)
-
-    statefix!(data, series, "Kansas", 121)
-    statefix!(data, series, "Kansas", 206, 208)
-    statefix!(data, series, "Kansas", 349)
-
-    statefix!(data, series, "Kentucky", 292)
-    statefix!(data, series, "Kentucky", 430)
-
-    statefix!(data, series, "Louisiana", 149)
-    countyfix!(data, series, "Louisiana", 531, [13, 21, 42, 46, 62])
-
-    statefix!(data, series, "Missouri", 254)
-    statefix!(data, series, "Missouri", 414)
-    countyfix!(data, series, "Missouri", 427, 429, [23, 52, 56, 63, 82, 87, 97, 106])
-    statefix!(data, series, "Missouri", 451)
-    statefix!(data, series, "Missouri", 501)
-
-    statefix!(data, series, "New York", 92, 94)
-
-    statefix!(data, series, "Nevada", 600)
-
-    statefix!(data, series, "Pennsylvania", 430, 431)
-
-    statefix!(data, series, "Rhode Island", 574)
-    statefix!(data, series, "Rhode Island", 588)
-
-    countyfix!(data, series, "South Carolina", 244, [2, 6, 19, 35])
-
-    countyfix!(data, series, "Tennessee", 292, 293, [9, 20, 29, 34])
-    statefix!(data, series, "Tennessee", 385)
-    
-    countyfix!(data, series, "Texas", 113, [113])
-    countyfix!(data, series, "Texas", 147, [1])
-    countyfix!(data, series, "Texas", 240, [1])
-
-    statefix!(data, series, "Texas", 282)
-    statefix!(data, series, "Texas", 284)
-    statefix!(data, series, "Texas", 326, 327)
-    countyfix!(data, series, "Texas", 327, 328, [7])
-    statefix!(data, series, "Texas", 376)
-    statefix!(data, series, "Texas", 378)
-    statefix!(data, series, "Texas", 507)
-    statefix!(data, series, "Texas", 514)
-    statefix!(data, series, "Texas", 518)
-    statefix!(data, series, "Texas", 521)
-    statefix!(data, series, "Texas", 524)
-
-    statefix!(data, series, "Washington", 547, 550)
-
-    countyfix!(data, series, "Wisconsin", 238, 239, [57:60...])
-    statefix!(data, series, "Wisconsin", 269, 270)
-    statefix!(data, series, "Wisconsin", 271)
-
-    statefix!(data, series, "Utah", 67, 68)
-    statefix!(data, series, "Utah", 86)
-    statefix!(data, series, "Utah", 88)
-    statefix!(data, series, "Utah", 309, 310)
-end
-
     # consider:
     # - add flickering
     # - algorithm to dampen huge peaks based on how flat surrounding is
@@ -554,18 +452,102 @@ preparedata!(data, datarange)
 
 # load weather data here
 weatherdata = loadweatherdata(data)
+sort!(weatherdata, [:Combined_Key, :DATE])
 
+# change out NaN for an average of nearby values, if not at the end of the series
+groupedweatherdata = groupby(weatherdata, [:Combined_Key])
+for g ∈ groupedweatherdata
+    for (i, rec) ∈ enumerate(eachrow(g))
+        1 < i < length(g.TMIN) || continue
+        if isnan(rec.TMIN)
+            prevtmin = NaN
+            for j ∈ (i - 1):-1:1
+                if !isnan(g[j, :TMIN])
+                    prevtmin = g[j, :TMIN]
+                    break
+                end
+            end
+            nexttmin = NaN
+            for j ∈ (i - 1):length(g.TMIN)
+                if !isnan(g[j, :TMIN])
+                    nexttmin = g[j, :TMIN]
+                    break
+                end
+            end
+            if !isnan(prevtmin) && !isnan(nexttmin)
+                rec.TMIN = mean([prevtmin, nexttmin])
+            end
+        end
+        if isnan(rec.TAVG)
+            prevtavg = NaN
+            for j ∈ (i - 1):-1:1
+                if !isnan(g[j, :TAVG])
+                    prevtavg = g[j, :TAVG]
+                    break
+                end
+            end
+            nexttavg = NaN
+            for j ∈ (i - 1):length(g.TAVG)
+                if !isnan(g[j, :TAVG])
+                    nexttavg = g[j, :TAVG]
+                    break
+                end
+            end
+            if !isnan(prevtavg) && !isnan(nexttavg)
+                rec.TAVG = mean([prevtavg, nexttavg])
+            end
+        end
+        if isnan(rec.TMAX)
+            prevtmax = NaN
+            for j ∈ (i - 1):-1:1
+                if !isnan(g[j, :TMAX])
+                    prevtmax = g[j, :TMAX]
+                    break
+                end
+            end
+            nexttmax = NaN
+            for j ∈ (i - 1):length(g.TMAX)
+                if !isnan(g[j, :TMAX])
+                    nexttmax = g[j, :TMAX]
+                    break
+                end
+            end
+            if !isnan(prevtmax) && !isnan(nexttmax)
+                rec.TMAX = mean([prevtmax, nexttmax])
+            end
+        end
+    end
+end
 
+# filter for only counties for which we also have temperature data
+sort!(data, :Combined_Key)
+filter!(:Combined_Key => x -> x ∈ weatherdata.Combined_Key, data)
+
+# extract temperature series
+ncounties = length(unique(weatherdata.Combined_Key))
+nobservations = length(weatherdata[!, :TMIN]) ÷ ncounties
+tminseries = permutedims(reshape(weatherdata[!, :TMIN], nobservations, ncounties))
+tmaxseries = permutedims(reshape(weatherdata[!, :TMAX], nobservations, ncounties))
+tavgseries = permutedims(reshape(weatherdata[!, :TAVG], nobservations, ncounties))
+
+# extract cases series
 series = Array{Float64, 2}(data[!, datarange])
 series = diff(series, dims = 2)
 series ./= data.POPESTIMATE2019
 fixnegatives!(series)
-fixspikes!(data, series)
 fixweekendspikes!(series)
 dampenspikes!(series)
 seriesavg = reduce(hcat, sma.(eachrow(series), 7))
 seriesavg ./= maximum(seriesavg, dims = 1)
 seriesavg[isnan.(seriesavg)] .= 0
+
+seriesavgdiff = diff(seriesavg, dims = 1) ./ seriesavg[1:end - 1, :]
+seriesavgdiff[isnan.(seriesavgdiff)] .= 0
+
+tminseriesavg = reduce(hcat, sma.(eachrow(tminseries), 14))
+tavgseriesavg = reduce(hcat, sma.(eachrow(tavgseries), 14))
+tmaxseriesavg = reduce(hcat, sma.(eachrow(tmaxseries), 14))
+
 
 alaskageoms = data.geometry[data.Province_State .== "Alaska"]
 hawaiigeoms = data.geometry[data.Province_State .== "Hawaii"]
