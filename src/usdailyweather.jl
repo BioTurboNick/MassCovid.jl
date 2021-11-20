@@ -227,14 +227,14 @@ function loadcountyweatherdata(data)
         weatherdata = tmindata
         weatherdata = outerjoin(weatherdata, tavgdata[!, [:ID, :DATE, :TAVG]], on = [:ID, :DATE])
         weatherdata = outerjoin(weatherdata, tmaxdata[!, [:ID, :DATE, :TMAX]], on = [:ID, :DATE])
-        filter!(x -> !ismissing(x.TMIN) && !ismissing(x.TAVG) && !ismissing(x.TMAX), weatherdata) # retain complete temperature records
         filter!(:ID => x -> x ∈ stations.ID, weatherdata) # retain US temperature records
 
         # combine counties
         weatherdata = innerjoin(weatherdata, stations[!, [:ID, :Combined_Key, :ELEVATION]], on = [:ID])
         groupedweatherdata = groupby(weatherdata, [:Combined_Key, :DATE])
         # should select stations with the lowest elevation in a county
-        weatherdata = combine(groupedweatherdata, :TMIN => mean => :TMIN, :TAVG => mean => :TAVG, :TMAX => mean => :TMAX, :ELEVATION => mean => :ELEVATION)
+        meanmissing(x) = (val = mean(skipmissing(x)); isnan(val) ? missing : val)
+        weatherdata = combine(groupedweatherdata, :TMIN => meanmissing => :TMIN, :TAVG => meanmissing => :TAVG, :TMAX => meanmissing => :TMAX, :ELEVATION => meanmissing => :ELEVATION)
         transform!(weatherdata, :DATE => (x -> Date.(string.(x), dateformat"yyyymmdd")) => :DATE)
         transform!(weatherdata, :TMIN => (x -> x / 10) => :TMIN)
         transform!(weatherdata, :TMAX => (x -> x / 10) => :TMAX)
@@ -245,7 +245,7 @@ function loadcountyweatherdata(data)
         for g ∈ groupedweatherdata
             missingdates = setdiff(Date("20200101", dateformat"yyyymmdd"):Day(1):today(), sort(g.DATE))
             for d ∈ missingdates
-                push!(weatherdata, (g.Combined_Key[1], d, NaN, NaN, NaN, NaN))
+                push!(weatherdata, (g.Combined_Key[1], d, missing, missing, missing, 0))
             end
         end
 
@@ -451,25 +451,25 @@ datarange = findfirst(==(Symbol("1/22/20")), colnames):findfirst(==(:SUMLEV), co
 preparedata!(data, datarange)
 
 # load weather data here
-weatherdata = loadweatherdata(data)
+weatherdata = loadcountyweatherdata(data)
 sort!(weatherdata, [:Combined_Key, :DATE])
 
-# change out NaN for an average of nearby values, if not at the end of the series
+# change out missing for an average of nearby values, if not at the end of the series
 groupedweatherdata = groupby(weatherdata, [:Combined_Key])
 for g ∈ groupedweatherdata
     for (i, rec) ∈ enumerate(eachrow(g))
         1 < i < length(g.TMIN) || continue
-        if isnan(rec.TMIN)
+        if ismissing(rec.TMIN)
             prevtmin = NaN
             for j ∈ (i - 1):-1:1
-                if !isnan(g[j, :TMIN])
+                if !ismissing(g[j, :TMIN])
                     prevtmin = g[j, :TMIN]
                     break
                 end
             end
             nexttmin = NaN
             for j ∈ (i - 1):length(g.TMIN)
-                if !isnan(g[j, :TMIN])
+                if !ismissing(g[j, :TMIN])
                     nexttmin = g[j, :TMIN]
                     break
                 end
@@ -478,17 +478,17 @@ for g ∈ groupedweatherdata
                 rec.TMIN = mean([prevtmin, nexttmin])
             end
         end
-        if isnan(rec.TAVG)
+        if ismissing(rec.TAVG)
             prevtavg = NaN
             for j ∈ (i - 1):-1:1
-                if !isnan(g[j, :TAVG])
+                if !ismissing(g[j, :TAVG])
                     prevtavg = g[j, :TAVG]
                     break
                 end
             end
             nexttavg = NaN
             for j ∈ (i - 1):length(g.TAVG)
-                if !isnan(g[j, :TAVG])
+                if !ismissing(g[j, :TAVG])
                     nexttavg = g[j, :TAVG]
                     break
                 end
@@ -497,17 +497,17 @@ for g ∈ groupedweatherdata
                 rec.TAVG = mean([prevtavg, nexttavg])
             end
         end
-        if isnan(rec.TMAX)
+        if ismissing(rec.TMAX)
             prevtmax = NaN
             for j ∈ (i - 1):-1:1
-                if !isnan(g[j, :TMAX])
+                if !ismissing(g[j, :TMAX])
                     prevtmax = g[j, :TMAX]
                     break
                 end
             end
             nexttmax = NaN
             for j ∈ (i - 1):length(g.TMAX)
-                if !isnan(g[j, :TMAX])
+                if !ismissing(g[j, :TMAX])
                     nexttmax = g[j, :TMAX]
                     break
                 end
@@ -517,6 +517,10 @@ for g ∈ groupedweatherdata
             end
         end
     end
+    for rec ∈ eachrow(g)
+        ismissing(rec.TAVG) && !ismissing(rec.TMIN) && !ismissing(rec.TMAX) || continue
+        rec.TAVG = mean([rec.TMIN, rec.TMAX])
+    end
 end
 
 # filter for only counties for which we also have temperature data
@@ -524,15 +528,9 @@ sort!(data, :Combined_Key)
 filter!(:Combined_Key => x -> x ∈ weatherdata.Combined_Key, data)
 
 # limit to after first wave
-weatherdata = filter(:DATE => >(Date("20200430", dateformat"yyyymmdd")), weatherdata)
-datarange = findfirst(==(Symbol("4/30/20")), colnames):last(datarange)
-
-# extract temperature series
-ncounties = length(unique(weatherdata.Combined_Key))
-nobservations = length(weatherdata[!, :TMIN]) ÷ ncounties
-tminseries = permutedims(reshape(weatherdata[!, :TMIN], nobservations, ncounties))
-tmaxseries = permutedims(reshape(weatherdata[!, :TMAX], nobservations, ncounties))
-tavgseries = permutedims(reshape(weatherdata[!, :TAVG], nobservations, ncounties))
+weatherdata = filter(:DATE => >(Date("20200122", dateformat"yyyymmdd")), weatherdata)
+#weatherdata = filter(:DATE => >(Date("20200430", dateformat"yyyymmdd")), weatherdata)
+#datarange = findfirst(==(Symbol("4/30/20")), colnames):last(datarange)
 
 # extract cases series; only consider counties that saw at least 100 cases/day on at least one day after averaging
 series = Array{Float64, 2}(data[!, datarange])
@@ -542,31 +540,74 @@ fixweekendspikes!(series)
 dampenspikes!(series)
 seriesavg = reduce(hcat, sma.(eachrow(series), 7))
 atleast100 = (maximum(seriesavg, dims = 1) .> 100) |> vec
-seriesavg = seriesavg[:, atleast100]
-tminseries = tminseries[atleast100, :]
-tmaxseries = tmaxseries[atleast100, :]
-tavgseries = tavgseries[atleast100, :]
+seriesavg100 = seriesavg[:, atleast100]
 
-seriesavg ./= permutedims(data.POPESTIMATE2019[atleast100])
-seriesavg ./= maximum(seriesavg, dims = 1)
+# extract temperature series
+ncounties = length(unique(weatherdata.Combined_Key))
+nobservations = length(weatherdata[!, :TMIN]) ÷ ncounties
+tminseries = permutedims(reshape(weatherdata[!, :TMIN], nobservations, ncounties))
+tmaxseries = permutedims(reshape(weatherdata[!, :TMAX], nobservations, ncounties))
+tavgseries = permutedims(reshape(weatherdata[!, :TAVG], nobservations, ncounties))
+
+# use some real value for bad stations
+tminseries[ismissing.(tminseries)] .= 0
+tavgseries[ismissing.(tavgseries)] .= 0
+tmaxseries[ismissing.(tmaxseries)] .= 0
+tminseries = Float64.(tminseries)
+tavgseries = Float64.(tavgseries)
+tmaxseries = Float64.(tmaxseries)
+
+# tminseries100 = tminseries[atleast100, :]
+# tmaxseries100 = tmaxseries[atleast100, :]
+# tavgseries100 = tavgseries[atleast100, :]
+
+# seriesavg100 ./= permutedims(data.POPESTIMATE2019[atleast100])
+# seriesavg100 ./= maximum(seriesavg100, dims = 1)
 # seriesavg[isnan.(seriesavg)] .= 0
 
-tminseriesavg = reduce(hcat, sma.(eachrow(tminseries), 14))
-tavgseriesavg = reduce(hcat, sma.(eachrow(tavgseries), 14))
-tmaxseriesavg = reduce(hcat, sma.(eachrow(tmaxseries), 14))
+# tminseriesavg100 = reduce(hcat, sma.(eachrow(tminseries100), 28))
+# tavgseriesavg100 = reduce(hcat, sma.(eachrow(tavgseries100), 28))
+# tmaxseriesavg100 = reduce(hcat, sma.(eachrow(tmaxseries100), 28))
 
-function plotme(i)
-    p = plot(seriesavg[:, i], linewidth = 4)
-    p1 = twinx()
-    plot!(p1, tmaxseriesavg[:,i], linecolor = :red, linewidth = 4, ylims = (-30, 50))
-    plot!(p1, tminseriesavg[:,i], linecolor = :red, linewidth = 4, ylims = (-30, 50))
-    hline!(p1, [0, 25], linecolor = :green, linewidth = 4)
-    plot!(ticks = :none, legend = :none, xwiden = false)
+tminseriesavg = reduce(hcat, sma.(eachrow(tminseries[:, 1:end - 1]), 28))
+tavgseriesavg = reduce(hcat, sma.(eachrow(tavgseries[:, 1:end - 1]), 28))
+tmaxseriesavg = reduce(hcat, sma.(eachrow(tmaxseries[:, 1:end - 1]), 28))
+
+
+# tavgseriesavgdiff = diff(tavgseriesavg100, dims = 1)
+# tavgseriesavgdiffavg = reduce(hcat, sma.(eachcol(tavgseriesavgdiff), 60))
+# tminseriesavgdiff = diff(tminseriesavg100, dims = 1)
+# tminseriesavgdiffavg = reduce(hcat, sma.(eachcol(tminseriesavgdiff), 60))
+# tmaxseriesavgdiff = diff(tmaxseriesavg100, dims = 1)
+# tmaxseriesavgdiffavg = reduce(hcat, sma.(eachcol(tmaxseriesavgdiff), 60))
+# seriesavgdiff = diff(seriesavg100, dims = 1)
+# seriesavgdiffavg = reduce(hcat, sma.(eachcol(seriesavgdiff), 60))
+
+function plotcountydata()
+    function plotme(i)
+        p = plot(seriesavgdiffavg[:, i], linewidth = 4)
+        p1 = twinx()
+        plot!(p1, tmaxseriesavg[:,i], linecolor = :red, linewidth = 4, ylims = (-30, 50))
+        plot!(p1, tmaxseriesavg[:,i], linecolor = :red, linewidth = 4, ylims = (-30, 50))
+        hline!(p1, [0, 25], linecolor = :green, linewidth = 4)
+        plot!(ticks = :none, legend = :none, xwiden = false)
+    end
+    function plotmediff(i)
+        p = plot(seriesavgdiffavg[:, i], linewidth = 4)
+        p1 = twinx()
+        plot!(p1, tavgseriesavgdiffavg[:,i], linecolor = :red, linewidth = 4)
+        plot!(ticks = :none, legend = :none, xwiden = false)
+    end
+
+    allplots = [plotme(i) for i ∈ 1:count(atleast100)]
+    plot(allplots[(1:56) .+ 56 * 2]..., size=(2048,2048))
+    savefig(joinpath("output", "topcounties_weather.png"))
 end
 
-allplots = [plotme(i) for i ∈ 1:count(atleast100)]
-plot(allplots[(1:56) .+ 56 * 2]..., size=(2048,2048))
-savefig(joinpath("output", "topcounties_weather.png"))
+tavgseriesavg[isnan.(tavgseriesavg)] .= 0
+tminseriesavg[isnan.(tminseriesavg)] .= 0
+tmaxseriesavg[isnan.(tmaxseriesavg)] .= 0
+
 
 alaskageoms = data.geometry[data.Province_State .== "Alaska"]
 hawaiigeoms = data.geometry[data.Province_State .== "Hawaii"]
@@ -574,7 +615,7 @@ hawaiigeoms = data.geometry[data.Province_State .== "Hawaii"]
 lower48geoms = data.geometry[data.Province_State .∉ Ref(["Alaska", "Hawaii", "Puerto Rico"])]
 
 grad = cgrad(:thermal)
-colors = map(x -> grad[x], seriesavg)
+colors = map(x -> grad[x], (tavgseriesavg .- 0) ./ (30 - 0))
 alaskacolors = colors[:, data.Province_State .== "Alaska"]
 hawaiicolors = colors[:, data.Province_State .== "Hawaii"]
 lower48colors = colors[:, data.Province_State .∉ Ref(["Alaska", "Hawaii", "Puerto Rico"])]
@@ -611,7 +652,7 @@ date = Date(names(data)[datarange[end]], dateformat"mm/dd/yy") + Year(2000) - Da
 for i ∈ 1:length(eachrow(lower48colors))
     println("Day $i")
     lower48plot = plot(lower48geoms, fillcolor=permutedims(@view lower48colors[i, :]), size=(2048, 1280),
-        grid=false, showaxis=false, ticks=false, aspect_ratio=1.2, title="United States COVID-19 Hot Spots\nNicholas C Bauer PhD | Twitter: @bioturbonick",
+        grid=false, showaxis=false, ticks=false, aspect_ratio=1.2, title="United States Average Daily Temperature\nNicholas C Bauer PhD | Twitter: @bioturbonick",
         titlefontcolor=:white, background_color=:black, linecolor=grad[0.0])
     annotate!([(-75,30.75, ("$date", 36, :white))])
     plot!(lower48plot, alaskageoms, fillcolor=permutedims(@view alaskacolors[i, :]),
@@ -624,10 +665,8 @@ for i ∈ 1:length(eachrow(lower48colors))
         inset=(1, bbox(0.25, 0.0, 0.2, 0.2, :bottom, :left)), subplot=3)
     Plots.frame(anim)
     date += Day(1)
-    empty!(Plots.sp_clims)
-    empty!(Plots.series_clims)
 end
 for i = 1:20 # insert 20 more of the same frame at end
     Plots.frame(anim)
 end
-mp4(anim, joinpath("output", "us_animation_map.mp4"), fps = 7)
+mp4(anim, joinpath("output", "us_animation_map_temp.mp4"), fps = 7)

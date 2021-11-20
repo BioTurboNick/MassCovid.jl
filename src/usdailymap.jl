@@ -1,5 +1,6 @@
 using DataFrames
 using Dates
+using Downloads
 using Shapefile
 using Plots
 using XLSX
@@ -67,7 +68,7 @@ statefp_name_dict = Dict(
 
 function downloadcountycasedata()
     path = joinpath("input", "time_series_covid19_confirmed_US.csv")
-    download("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv", path)
+    Downloads.download("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv", path)
 end
 
 function loadcountydata()
@@ -160,7 +161,7 @@ function preparedata!(data, datarange)
     akbblprow = selectcounty(data, "Alaska", "Bristol Bay plus Lake and Peninsula") # Bristol Bay, Lake and Peninsula
     addcountycases!(data, "Alaska", "Bristol Bay", akbblprow, akpop, datarange)
     addcountycases!(data, "Alaska", "Lake and Peninsula", akbblprow, akpop, datarange)
-    data.Combined_Key[data.Admin2 .== "Lake and Peninsula"] = "Lake and Peninsula, Alaska, US"
+    data.Combined_Key[data.Admin2 .== "Lake and Peninsula"] .= "Lake and Peninsula, Alaska, US"
     delete!(data, selectcounties(data, "Alaska", ["Bristol Bay plus Lake and Peninsula", "Chugach", "Copper River"]))
 
     # Massachusetts
@@ -373,6 +374,8 @@ function fixspikes!(data, series)
 
     statefix!(data, series, "New York", 92, 94)
 
+    statefix!(data, series, "New Hampshire", 640, 643)
+
     statefix!(data, series, "Nevada", 600)
 
     statefix!(data, series, "Pennsylvania", 430, 431)
@@ -470,9 +473,6 @@ lower48colors = colors[:, data.Province_State .∉ Ref(["Alaska", "Hawaii", "Pue
         return out
     end
 end
-
-
-## New Hampshire reporting anomaly (no cases then big dump)
 
 anim = Plots.Animation()
 date = Date(names(data)[datarange[end]], dateformat"mm/dd/yy") + Year(2000) - Day(length(eachrow(lower48colors)) - 1)
