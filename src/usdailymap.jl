@@ -474,6 +474,8 @@ lower48colors = colors[:, data.Province_State .∉ Ref(["Alaska", "Hawaii", "Pue
     end
 end
 
+# Missouri had another spike around 11/17/21
+
 anim = Plots.Animation()
 date = Date(names(data)[datarange[end]], dateformat"mm/dd/yy") + Year(2000) - Day(length(eachrow(lower48colors)) - 1)
 for i ∈ 1:length(eachrow(lower48colors))

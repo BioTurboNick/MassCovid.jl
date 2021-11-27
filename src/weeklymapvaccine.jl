@@ -15,7 +15,7 @@ end
 function downloadweeklyreport(datestring)
     path = joinpath("input","$(datestring)-vaccine.xlsx")
     ispath(path) && return path
-    download("https://www.mass.gov/doc/weekly-covid-19-municipality-vaccination-report-$(datestring)/download", path)
+    Downloads.download("https://www.mass.gov/doc/weekly-covid-19-municipality-vaccination-report-$(datestring)/download", path)
 end
 
 agecat = ["0-19 Years", "20-29 Years", "30-49 Years", "50-64 Years", "65-74 Years", "75+ Years", "Total"]
@@ -45,7 +45,7 @@ function loadweekdata(path)
     data = XLSX.readxlsx(path)
 
     sheet = XLSX.hassheet(data, "Age - municipality") ? data["Age - municipality"] : data["Age – municipality"]
-    nrows = "12-15 Years" ∈ sheet["C"][3:end] ? 8 : 7
+    nrows ="5-11 Years" ∈ sheet["C"][3:end] ? 9 : "12-15 Years" ∈ sheet["C"][3:end] ? 8 : 7
     range = 2 .+ (1:nrows * 337)
     names = sheet["B"][range]
     pops = sheet["D"][range]
@@ -88,21 +88,23 @@ function loadweekdata(path)
     fullpercent = [fullpercent[1:unknowntownstart - 1]; fullpercent[unknowntownend + 1:end]]
     
 
-    # put 12-15 and 16-19 back into 0-19
+    # put 5-11 and 12-15 and 16-19 back into 0-19
     @views if any(==(8), ages)
-        shape = (8, length(pops) ÷ 8)
+        shape = (nrows, length(pops) ÷ nrows)
         pops = reshape(pops, shape)
-        childpop = pops[8,:] .- sum(pops[3:7,:], dims = 1)'
+        childpop = pops[end,:] .- sum(pops[end-5:end-1,:], dims = 1)'
         onepluspercentr = reshape(onepluspercent, shape)
         fullpercentr = reshape(fullpercent, shape)
-        onepluspop12to15 = pops[1,:] .* onepluspercentr[1,:]
-        onepluspop16to19 = pops[2,:] .* onepluspercentr[2,:]
-        fullpop12to15 = pops[1,:] .* fullpercentr[1,:]
-        fullpop16to19 = pops[2,:] .* fullpercentr[2,:]
-        onepluspercentr[2,:] = (onepluspop12to15 .+ onepluspop16to19) ./ childpop
-        fullpercentr[2,:] = (fullpop12to15 .+ fullpop16to19) ./ childpop
-        onepluspercent = vec(onepluspercentr[2:8,:])
-        fullpercent = vec(fullpercentr[2:8,:])
+        oneplussum = zeros(size(pops, 2))
+        fullsum = zeros(size(pops, 2))
+        for i ∈ 1:size(pops, 1) - 6
+            oneplussum .+= pops[i,:] .* onepluspercentr[i,:]
+            fullsum .+= pops[i,:] .* fullpercentr[i,:]
+        end
+        onepluspercentr[end-6,:] = oneplussum ./ childpop
+        fullpercentr[end-6,:] = fullsum ./ childpop
+        onepluspercent = vec(onepluspercentr[end-6:end,:])
+        fullpercent = vec(fullpercentr[end-6:end,:])
     end
 
     # dim 1 = town, dim 2 = age range
@@ -158,12 +160,14 @@ riskcolors = Dict(0 => :deepskyblue,
 mkpath("output")
 
 for i = 1:7 # age categories
+    println(i)
     oneplusmaps = []
     fullmaps = []
     onepluscategorycounts = []
     fullcategorycounts = []
 
     for w ∈ weeks
+        println(w)
         weekstr = lowercase(Dates.format(w, datefmt))
         path = downloadweeklyreport(weekstr)
         onepluspercent, fullpercent = loadweekdata(path)

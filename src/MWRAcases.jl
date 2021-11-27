@@ -27,6 +27,7 @@ end
 
 function loadweekdata(path, date)
     date == Date("november-12-2021", dateformat"U-d-yyyy") && (date = Date("november-11-2021", dateformat"U-d-yyyy"))
+    date == Date("november-26-2021", dateformat"U-d-yyyy") && (date = Date("november-25-2021", dateformat"U-d-yyyy"))
     data = XLSX.readxlsx(path)
 
     if XLSX.hassheet(data, "Weekly_City_Town")
@@ -97,7 +98,9 @@ weeks = [Date("august-12-2020", datefmt):Day(7):Date("october-14-2020", datefmt)
          Date("november-27-2020", datefmt);
          Date("december-3-2020", datefmt):Day(7):Date("november-4-2021", datefmt);
          Date("november-12-2021", datefmt);
-         Date("november-18-2021", datefmt):Day(7):today()]
+         Date("november-18-2021", datefmt);
+         Date("november-26-2021", datefmt);
+         Date("december-2-2021", datefmt):Day(7):today()]
 
 mwra_towns = sort(["WILMINGTON",
                 "BEDFORD",
@@ -194,11 +197,13 @@ mwra_south_towns = sort(["BOSTON",
 other_towns = setdiff(towns, mwra_towns)
 
 mwra_indexes = indexin(mwra_towns, towns)
+boston_index = indexin(["BOSTON"], towns)
 mwra_north_indexes = indexin(mwra_north_towns, towns)
 mwra_south_indexes = indexin(mwra_south_towns, towns)
 other_indexes = indexin(other_towns, towns)
 
 mwra_counts = []
+boston_counts = []
 mwra_north_counts = []
 mwra_south_counts = []
 other_counts = []
@@ -209,12 +214,13 @@ for w ∈ weeks
     counts, rates, ppos = loadweekdata(path, w)
 
     push!(mwra_counts, sum(counts[mwra_indexes]))
+    push!(boston_counts, sum(counts[boston_index]))
     push!(mwra_north_counts, sum(counts[mwra_north_indexes]))
     push!(mwra_south_counts, sum(counts[mwra_south_indexes]))
     push!(other_counts, sum(counts[other_indexes]))
 end
 
-plot([mwra_counts mwra_north_counts mwra_south_counts other_counts] ./ 2, labels = ["MWRA" "MWRA South" "MWRA North" "Non-MWRA"], lw = 3, yformatter=:plain,
+plot([mwra_counts mwra_south_counts mwra_north_counts other_counts] ./ 2, labels = ["MWRA" "MWRA South" "MWRA North" "Non-MWRA"], lw = 3, yformatter=:plain,
      xaxis=((1,length(weeks)),30), xticks=(1:2:length(weeks), weeks[1:2:end]),
      ylabel="New cases/week", title="Massachusetts weekly cases by MWRA service area")
 savefig(joinpath("output", "mwra_cases.png"))
@@ -222,3 +228,26 @@ plot([mwra_counts mwra_north_counts mwra_south_counts other_counts][(end - 12):e
      xaxis=((1,length(weeks[(end - 12):end])),30), xticks=(1:2:length(weeks[(end - 12):end]), weeks[(end - 12):2:end]),
      ylabel="New cases/week", title="Massachusetts weekly cases by MWRA service area", legend=:topleft)
 savefig(joinpath("output", "mwra_cases_recent.png"))
+
+
+
+# Polished version per 100k
+
+boston_pop = sum(pop2010[boston_index])
+mwra_north_pop = sum(pop2010[mwra_north_indexes]) - boston_pop
+mwra_south_pop = sum(pop2010[mwra_south_indexes]) - boston_pop
+other_pop = sum(pop2010[other_indexes])
+
+mwra_north_counts .-= boston_counts
+mwra_south_counts .-= boston_counts
+
+boston_counts ./= boston_pop / 100_000
+mwra_north_counts ./= mwra_north_pop / 100_000
+mwra_south_counts ./= mwra_south_pop / 100_000
+other_counts ./= other_pop / 100_000
+
+plot([boston_counts mwra_south_counts mwra_north_counts other_counts] ./ 2, labels = ["Boston" "Greater Boston South" "Greater Boston North" "Outside Greater Boston"], lw = 3, yformatter=:plain,
+     xaxis=((1,length(weeks)),30), xticks=(1:4:length(weeks), weeks[1:4:end]),
+     ylabel="New cases/week", title="Massachusetts weekly cases by region\n per 100k")
+vline!([55], lw = 3, linecolor = :black, label = "2021 Boston Mask Mandate")
+savefig(joinpath("output", "mwra_cases_pop_polished.png"))

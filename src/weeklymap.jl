@@ -27,6 +27,7 @@ end
 
 function loadweekdata(path, date)
     date == Date("november-12-2021", dateformat"U-d-yyyy") && (date = Date("november-11-2021", dateformat"U-d-yyyy"))
+    date == Date("november-26-2021", dateformat"U-d-yyyy") && (date = Date("november-25-2021", dateformat"U-d-yyyy"))
     data = XLSX.readxlsx(path)
 
     if XLSX.hassheet(data, "Weekly_City_Town")
@@ -102,7 +103,9 @@ weeks = [Date("august-12-2020", datefmt):Day(7):Date("october-14-2020", datefmt)
          Date("november-27-2020", datefmt);
          Date("december-3-2020", datefmt):Day(7):Date("november-4-2021", datefmt);
          Date("november-12-2021", datefmt);
-         Date("november-18-2021", datefmt):Day(7):today()]
+         Date("november-18-2021", datefmt);
+         Date("november-26-2021", datefmt);
+         Date("december-2-2021", datefmt):Day(7):today()]
 
 labels = ["0 total",
           "<5 total",
