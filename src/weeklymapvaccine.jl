@@ -159,30 +159,29 @@ riskcolors = Dict(0 => :deepskyblue,
 
 mkpath("output")
 
-for i = 1:7 # age categories
-    println(i)
-    oneplusmaps = []
-    fullmaps = []
-    onepluscategorycounts = []
-    fullcategorycounts = []
 
-    for w ∈ weeks
-        println(w)
-        weekstr = lowercase(Dates.format(w, datefmt))
-        path = downloadweeklyreport(weekstr)
-        onepluspercent, fullpercent = loadweekdata(path)
+oneplusmaps = AbstractArray[[], [], [], [], [], [], []]
+fullmaps = AbstractArray[[], [], [], [], [], [], []]
+onepluscategorycounts = AbstractArray[[], [], [], [], [], [], []]
+fullcategorycounts = AbstractArray[[], [], [], [], [], [], []]
 
+for w ∈ weeks
+    println(w)
+    weekstr = lowercase(Dates.format(w, datefmt))
+    path = downloadweeklyreport(weekstr)
+    onepluspercent, fullpercent = loadweekdata(path)
+    for i = 1:7 # age categories
         oneplusrisklevel = calculaterisklevels(onepluspercent)[:, i]
         ndims(oneplusrisklevel) == 1 || (oneplusrisklevel = dropdims(oneplusrisklevel, dims = 2))
 
         colors = [riskcolors[r] for r ∈ oneplusrisklevel] |> permutedims
-        push!(oneplusmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Vaccination Level (At Least One; $(agecat[i]))\n$(w)", labels=labels))
+        push!(oneplusmaps[i], plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Vaccination Level (At Least One; $(agecat[i]))\n$(w)", labels=labels))
         savefig(joinpath("output", "$(weekstr)-vaccine-oneplus_$(agecat[i]).png"))
 
         fullrisklevel = calculaterisklevels(fullpercent)[:, i]
         ndims(fullrisklevel) == 1 || (fullrisklevel = dropdims(fullrisklevel, dims = 2))
         colors = [riskcolors[r] for r ∈ fullrisklevel] |> permutedims
-        push!(fullmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Vaccination Level (Full; $(agecat[i]))\n$(w)", labels=labels))
+        push!(fullmaps[i], plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Vaccination Level (Full; $(agecat[i]))\n$(w)", labels=labels))
         savefig(joinpath("output", "$(weekstr)-vaccine-full_$(agecat[i]).png"))
 
         # calculate weighted categories and append them
@@ -191,7 +190,7 @@ for i = 1:7 # age categories
             push!(weightedcategorycounts, sum(pop2010[oneplusrisklevel[1:end] .== k]))
         end
         weightedcategorycounts = permutedims(weightedcategorycounts)
-        onepluscategorycounts = isempty(onepluscategorycounts) ? weightedcategorycounts : [onepluscategorycounts; weightedcategorycounts]
+        onepluscategorycounts[i] = isempty(onepluscategorycounts[i]) ? weightedcategorycounts : [onepluscategorycounts[i]; weightedcategorycounts]
 
         # calculate weighted categories and append them
         fullweightedcategorycounts = AbstractFloat[]
@@ -199,14 +198,15 @@ for i = 1:7 # age categories
             push!(fullweightedcategorycounts, sum(pop2010[fullrisklevel[1:end] .== k]))
         end
         fullweightedcategorycounts = permutedims(fullweightedcategorycounts)
-        fullcategorycounts = isempty(fullcategorycounts) ? fullweightedcategorycounts : [fullcategorycounts; fullweightedcategorycounts]
+        fullcategorycounts[i] = isempty(fullcategorycounts[i]) ? fullweightedcategorycounts : [fullcategorycounts[i]; fullweightedcategorycounts]
     end
-
+end
+for j ∈ 1:7 # ages
     # State Animation
     anim = Plots.Animation()
     for i ∈ eachindex(weeks)
-        plot(oneplusmaps[i])
-        areaplot!(onepluscategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
+        plot(oneplusmaps[j][i])
+        areaplot!(onepluscategorycounts[j][1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
                         xaxis=((1,length(weeks)),30), xticks=(1:3:length(weeks), weeks[1:3:end]),
                         yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
                         tick_direction=:in,
@@ -217,13 +217,13 @@ for i = 1:7 # age categories
     for i = 1:4 # insert 4 more of the same frame at end
         Plots.frame(anim)
     end
-    gif(anim, joinpath("output", "animation_map_vaccine_oneplus_$(agecat[i]).gif"), fps = 1)
-    savefig(joinpath("output", "current_week_map_vaccine_oneplus_$(agecat[i]).png"))
+    gif(anim, joinpath("output", "animation_map_vaccine_oneplus_$(agecat[j]).gif"), fps = 1)
+    savefig(joinpath("output", "current_week_map_vaccine_oneplus_$(agecat[j]).png"))
 
     anim = Plots.Animation()
     for i ∈ eachindex(weeks)
-        plot(fullmaps[i])
-        areaplot!(fullcategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
+        plot(fullmaps[j][i])
+        areaplot!(fullcategorycounts[j][1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
                         xaxis=((1,length(weeks)),30), xticks=(1:3:length(weeks), weeks[1:3:end]),
                         yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
                         tick_direction=:in,
@@ -234,7 +234,7 @@ for i = 1:7 # age categories
     for i = 1:4 # insert 4 more of the same frame at end
         Plots.frame(anim)
     end
-    gif(anim, joinpath("output", "animation_map_vaccine_full_$(agecat[i]).gif"), fps = 1)
-    savefig(joinpath("output", "current_week_map_vaccine_full_$(agecat[i]).png"))
+    gif(anim, joinpath("output", "animation_map_vaccine_full_$(agecat[j]).gif"), fps = 1)
+    savefig(joinpath("output", "current_week_map_vaccine_full_$(agecat[j]).png"))
 
 end
