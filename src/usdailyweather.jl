@@ -119,7 +119,7 @@ function loadcountyweatherdata(data)
     stations = nothing
     if !isfile(pathstations)
         Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt", pathstations)
-        stations = CSV.read(pathstations, DataFrame, delim = " ", ignorerepeated = true, select = 1:4, header = false, silencewarnings = true)
+        stations = CSV.read(pathstations, DataFrame, delim = ",", ignorerepeated = true, select = 1:4, header = false, silencewarnings = true)
         rename!(stations, 1 => "ID", 2 => "LATITUDE", 3 => "LONGITUDE", 4 => "ELEVATION")
         minlong, maxlong, minlat, maxlat = let
             minlong = minlat = Inf
@@ -194,65 +194,61 @@ function loadcountyweatherdata(data)
 
     weatherpath = joinpath("input", "weather.csv")
     weatherdata = nothing
-    if !isfile(weatherpath)
-        path2020 = joinpath("input", "weather_2020.csv.gz")
-        if !isfile(path2020)
-            Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/2020.csv.gz", path2020)
-        end
-        path2021 = joinpath("input", "weather_2021.csv.gz")
-        Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/2021.csv.gz", path2021)
-
-        header = ["ID", "DATE", "ELEMENT", "VALUE", "MFLAG", "QFLAG", "SFLAG", "TIME"]
-        weatherdata = nothing
-        open(path2020) do f
-            stream = GzipDecompressorStream(f)
-            global weatherdata = CSV.read(stream, DataFrame; header)
-            close(stream)
-        end
-        open(path2021) do f
-            stream = GzipDecompressorStream(f)
-            append!(weatherdata, CSV.read(stream, DataFrame; header))
-            close(stream)
-        end
-
-        filter!(:ELEMENT => x -> x ∈ ("TMIN", "TAVG", "TMAX"), weatherdata) # retain temperature records
-        filter!(:QFLAG => ismissing, weatherdata) # retain temperature records without quality flags
-
-        tmindata = filter(:ELEMENT => ==("TMIN"), weatherdata)
-        rename!(tmindata, :VALUE => :TMIN)
-        tavgdata = filter(:ELEMENT => ==("TAVG"), weatherdata)
-        rename!(tavgdata, :VALUE => :TAVG)
-        tmaxdata = filter(:ELEMENT => ==("TMAX"), weatherdata)
-        rename!(tmaxdata, :VALUE => :TMAX)
-        weatherdata = tmindata
-        weatherdata = outerjoin(weatherdata, tavgdata[!, [:ID, :DATE, :TAVG]], on = [:ID, :DATE])
-        weatherdata = outerjoin(weatherdata, tmaxdata[!, [:ID, :DATE, :TMAX]], on = [:ID, :DATE])
-        filter!(:ID => x -> x ∈ stations.ID, weatherdata) # retain US temperature records
-
-        # combine counties
-        weatherdata = innerjoin(weatherdata, stations[!, [:ID, :Combined_Key, :ELEVATION]], on = [:ID])
-        groupedweatherdata = groupby(weatherdata, [:Combined_Key, :DATE])
-        # should select stations with the lowest elevation in a county
-        meanmissing(x) = (val = mean(skipmissing(x)); isnan(val) ? missing : val)
-        weatherdata = combine(groupedweatherdata, :TMIN => meanmissing => :TMIN, :TAVG => meanmissing => :TAVG, :TMAX => meanmissing => :TMAX, :ELEVATION => meanmissing => :ELEVATION)
-        transform!(weatherdata, :DATE => (x -> Date.(string.(x), dateformat"yyyymmdd")) => :DATE)
-        transform!(weatherdata, :TMIN => (x -> x / 10) => :TMIN)
-        transform!(weatherdata, :TMAX => (x -> x / 10) => :TMAX)
-        transform!(weatherdata, :TAVG => (x -> x / 10) => :TAVG)
-
-        # insert missing days
-        groupedweatherdata = groupby(copy(weatherdata), [:Combined_Key])
-        for g ∈ groupedweatherdata
-            missingdates = setdiff(Date("20200101", dateformat"yyyymmdd"):Day(1):today(), sort(g.DATE))
-            for d ∈ missingdates
-                push!(weatherdata, (g.Combined_Key[1], d, missing, missing, missing, 0))
-            end
-        end
-
-        CSV.write(weatherpath, weatherdata)
-    else
-        weatherdata = CSV.read(weatherpath, DataFrame)
+    path2020 = joinpath("input", "weather_2020.csv.gz")
+    if !isfile(path2020)
+        Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/2020.csv.gz", path2020)
     end
+    path2021 = joinpath("input", "weather_2021.csv.gz")
+    Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/2021.csv.gz", path2021)
+
+    header = ["ID", "DATE", "ELEMENT", "VALUE", "MFLAG", "QFLAG", "SFLAG", "TIME"]
+    weatherdata = nothing
+    open(path2020) do f
+        stream = GzipDecompressorStream(f)
+        weatherdata = CSV.read(stream, DataFrame; header)
+        close(stream)
+    end
+    open(path2021) do f
+        stream = GzipDecompressorStream(f)
+        append!(weatherdata, CSV.read(stream, DataFrame; header))
+        close(stream)
+    end
+
+    filter!(:ELEMENT => x -> x ∈ ("TMIN", "TAVG", "TMAX"), weatherdata) # retain temperature records
+    filter!(:QFLAG => ismissing, weatherdata) # retain temperature records without quality flags
+
+    tmindata = filter(:ELEMENT => ==("TMIN"), weatherdata)
+    rename!(tmindata, :VALUE => :TMIN)
+    tavgdata = filter(:ELEMENT => ==("TAVG"), weatherdata)
+    rename!(tavgdata, :VALUE => :TAVG)
+    tmaxdata = filter(:ELEMENT => ==("TMAX"), weatherdata)
+    rename!(tmaxdata, :VALUE => :TMAX)
+    weatherdata = tmindata
+    weatherdata = outerjoin(weatherdata, tavgdata[!, [:ID, :DATE, :TAVG]], on = [:ID, :DATE])
+    weatherdata = outerjoin(weatherdata, tmaxdata[!, [:ID, :DATE, :TMAX]], on = [:ID, :DATE])
+    filter!(:ID => x -> x ∈ stations.ID, weatherdata) # retain US temperature records
+
+    # combine counties
+    weatherdata = innerjoin(weatherdata, stations[!, [:ID, :Combined_Key, :ELEVATION]], on = [:ID])
+    groupedweatherdata = groupby(weatherdata, [:Combined_Key, :DATE])
+    # should select stations with the lowest elevation in a county
+    meanmissing(x) = (val = mean(skipmissing(x)); isnan(val) ? missing : val)
+    weatherdata = combine(groupedweatherdata, :TMIN => meanmissing => :TMIN, :TAVG => meanmissing => :TAVG, :TMAX => meanmissing => :TMAX, :ELEVATION => meanmissing => :ELEVATION)
+    transform!(weatherdata, :DATE => (x -> Date.(string.(x), dateformat"yyyymmdd")) => :DATE)
+    transform!(weatherdata, :TMIN => (x -> x / 10) => :TMIN)
+    transform!(weatherdata, :TMAX => (x -> x / 10) => :TMAX)
+    transform!(weatherdata, :TAVG => (x -> x / 10) => :TAVG)
+
+    # insert missing days
+    groupedweatherdata = groupby(copy(weatherdata), [:Combined_Key])
+    for g ∈ groupedweatherdata
+        missingdates = setdiff(Date("20200101", dateformat"yyyymmdd"):Day(1):today(), sort(g.DATE))
+        for d ∈ missingdates
+            push!(weatherdata, (g.Combined_Key[1], d, missing, missing, missing, 0))
+        end
+    end
+
+    CSV.write(weatherpath, weatherdata)
     
     return weatherdata
 end
@@ -457,66 +453,6 @@ sort!(weatherdata, [:Combined_Key, :DATE])
 # change out missing for an average of nearby values, if not at the end of the series
 groupedweatherdata = groupby(weatherdata, [:Combined_Key])
 for g ∈ groupedweatherdata
-    for (i, rec) ∈ enumerate(eachrow(g))
-        1 < i < length(g.TMIN) || continue
-        if ismissing(rec.TMIN)
-            prevtmin = NaN
-            for j ∈ (i - 1):-1:1
-                if !ismissing(g[j, :TMIN])
-                    prevtmin = g[j, :TMIN]
-                    break
-                end
-            end
-            nexttmin = NaN
-            for j ∈ (i - 1):length(g.TMIN)
-                if !ismissing(g[j, :TMIN])
-                    nexttmin = g[j, :TMIN]
-                    break
-                end
-            end
-            if !isnan(prevtmin) && !isnan(nexttmin)
-                rec.TMIN = mean([prevtmin, nexttmin])
-            end
-        end
-        if ismissing(rec.TAVG)
-            prevtavg = NaN
-            for j ∈ (i - 1):-1:1
-                if !ismissing(g[j, :TAVG])
-                    prevtavg = g[j, :TAVG]
-                    break
-                end
-            end
-            nexttavg = NaN
-            for j ∈ (i - 1):length(g.TAVG)
-                if !ismissing(g[j, :TAVG])
-                    nexttavg = g[j, :TAVG]
-                    break
-                end
-            end
-            if !isnan(prevtavg) && !isnan(nexttavg)
-                rec.TAVG = mean([prevtavg, nexttavg])
-            end
-        end
-        if ismissing(rec.TMAX)
-            prevtmax = NaN
-            for j ∈ (i - 1):-1:1
-                if !ismissing(g[j, :TMAX])
-                    prevtmax = g[j, :TMAX]
-                    break
-                end
-            end
-            nexttmax = NaN
-            for j ∈ (i - 1):length(g.TMAX)
-                if !ismissing(g[j, :TMAX])
-                    nexttmax = g[j, :TMAX]
-                    break
-                end
-            end
-            if !isnan(prevtmax) && !isnan(nexttmax)
-                rec.TMAX = mean([prevtmax, nexttmax])
-            end
-        end
-    end
     for rec ∈ eachrow(g)
         ismissing(rec.TAVG) && !ismissing(rec.TMIN) && !ismissing(rec.TMAX) || continue
         rec.TAVG = mean([rec.TMIN, rec.TMAX])
@@ -670,3 +606,7 @@ for i = 1:20 # insert 20 more of the same frame at end
     Plots.frame(anim)
 end
 mp4(anim, joinpath("output", "us_animation_map_temp.mp4"), fps = 7)
+
+
+
+# figure out why many counties are getting stuck "on"?

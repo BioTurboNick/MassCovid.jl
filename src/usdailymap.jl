@@ -371,6 +371,7 @@ function fixspikes!(data, series)
     countyfix!(data, series, "Missouri", 427, 429, [23, 52, 56, 63, 82, 87, 97, 106])
     statefix!(data, series, "Missouri", 451)
     statefix!(data, series, "Missouri", 501)
+    statefix!(data, series, "Missouri", 666)
 
     statefix!(data, series, "New York", 92, 94)
 
@@ -387,6 +388,8 @@ function fixspikes!(data, series)
 
     countyfix!(data, series, "Tennessee", 292, 293, [9, 20, 29, 34])
     statefix!(data, series, "Tennessee", 385)
+    statefix!(data, series, "Tennessee", 506)
+    statefix!(data, series, "Tennessee", 510)
     
     countyfix!(data, series, "Texas", 113, [113])
     countyfix!(data, series, "Texas", 147, [1])
@@ -474,7 +477,7 @@ lower48colors = colors[:, data.Province_State .∉ Ref(["Alaska", "Hawaii", "Pue
     end
 end
 
-# Missouri had another spike around 11/17/21
+# KY or TN has a lightswitch sometime in a lull
 
 anim = Plots.Animation()
 date = Date(names(data)[datarange[end]], dateformat"mm/dd/yy") + Year(2000) - Day(length(eachrow(lower48colors)) - 1)
