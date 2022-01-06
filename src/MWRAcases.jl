@@ -284,10 +284,20 @@ nonequity_counts ./= nonequity_pop / 100_000
 plot([boston_counts mwra_south_counts mwra_north_counts other_counts] ./ 2, labels = ["Boston" "Greater Boston South" "Greater Boston North" "Outside Greater Boston"], lw = 3, yformatter=:plain,
      xaxis=((1,length(weeks)),30), xticks=(1:4:length(weeks), weeks[1:4:end]),
      ylabel="New cases/week", title="Massachusetts weekly cases by region\n per 100k")
-vline!([55], lw = 3, linecolor = :black, label = "2021 Boston Mask Mandate")
+#vline!([55], lw = 3, linecolor = :black, label = "2021 Boston Mask Mandate")
 savefig(joinpath("output", "mwra_cases_pop_polished.png"))
+
+plot([boston_counts mwra_north_counts mwra_south_counts other_counts][(end - 12):end,:] ./ 2, labels = ["Boston" "Greater Boston South" "Greater Boston North" "Outside Greater Boston"], lw = 3, yformatter=:plain,
+     xaxis=((1,length(weeks[(end - 12):end])),30), xticks=(1:2:length(weeks[(end - 12):end]), weeks[(end - 12):2:end]),
+     ylabel="New cases/week", title="Massachusetts weekly cases by region\n per 100k", legend=:topleft)
+savefig(joinpath("output", "mwra_cases_pop_recent_polished.png"))
 
 plot([boston_counts equity_counts nonequity_counts] ./ 2, labels = ["Boston" "Equity Communities" "Remaining Mass"], lw = 3, yformatter=:plain,
      xaxis=((1,length(weeks)),30), xticks=(1:4:length(weeks), weeks[1:4:end]),
      ylabel="New cases/week", title="Massachusetts weekly cases by region\n per 100k")
 savefig(joinpath("output", "mwra_cases_pop_polished_equity.png"))
+
+plot([boston_counts equity_counts nonequity_counts][(end - 12):end,:] ./ 2, labels = ["Boston" "Equity Communities" "Remaining Mass"], lw = 3, yformatter=:plain,
+     xaxis=((1,length(weeks[(end - 12):end])),30), xticks=(1:2:length(weeks[(end - 12):end]), weeks[(end - 12):2:end]),
+     ylabel="New cases/week", title="Massachusetts weekly cases by region\n per 100k", legend=:topleft)
+savefig(joinpath("output", "mwra_cases_pop_equity_recent_polished.png"))
