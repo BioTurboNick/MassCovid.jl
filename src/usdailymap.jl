@@ -425,8 +425,10 @@ function fill_end!(series)
         row[end] == 0 || continue
         lasti = size(series, 2)
         for i ∈ reverse(axes(series, 2))[2:14]
-            row[i] > 0 || continue
-            lasti = i
+            if row[i] > 0
+                lasti = i
+                break
+            end
         end
         lasti < size(series, 2) || continue
         row[(lasti + 1):end] .= row[lasti]
