@@ -278,7 +278,7 @@ function fixnegatives!(series)
 end
 
 function fixweekendspikes!(series)
-    # distribute spikes preceded by 1-6 zero-days evenly across the period
+    # distribute spikes preceded by 1-13 zero-days evenly across the period
     # here, "zero" is < 0.02 * the spike value
     for row ∈ eachrow(series)
         for i ∈ reverse(axes(series, 2))
@@ -286,11 +286,11 @@ function fixweekendspikes!(series)
             row[i] > 0 && i > 1 && row[i - 1] < threshold || continue
             # count adjacent ~0-days
             count = 0
-            for j ∈ i - 1:-1:i - 6
+            for j ∈ i - 1:-1:i - 13
                 j > 0 && row[j] < threshold || break
                 count += 1
             end
-            count == 6 && i > 7 && row[i - 7] < threshold && continue # more than a week of zeros, different type of spike
+            count == 13 && i > 14 && row[i - 14] < threshold && continue # more than 2 weeks of zeros, different type of spike
             spreadvalue = row[i] / (count + 1)
             row[i - count:i - 1] .+= spreadvalue
             row[i] = spreadvalue
@@ -419,6 +419,20 @@ function fixspikes!(data, series)
     statefix!(data, series, "Utah", 309, 310)
 end
 
+function fill_end!(series)
+    # fill up to 14 days at the end with the most recent nonzero value
+    for row ∈ eachrow(series)
+        row[end] == 0 || continue
+        lasti = size(series, 2)
+        for i ∈ reverse(axes(series, 2))[2:14]
+            row[i] > 0 || continue
+            lasti = i
+        end
+        lasti < size(series, 2) || continue
+        row[(lasti + 1):end] .= row[lasti]
+    end
+end
+
     # consider:
     # - add flickering
     # - algorithm to dampen huge peaks based on how flat surrounding is
@@ -435,8 +449,9 @@ fixnegatives!(series)
 fixspikes!(data, series)
 fixweekendspikes!(series)
 dampenspikes!(series)
+fill_end!(series)
 seriesavg = reduce(hcat, sma.(eachrow(series), 7))
-seriesavg ./= maximum(seriesavg, dims = 1)
+seriesavg ./= maximum(seriesavg, dims = 1) # 0.0015
 seriesavg[isnan.(seriesavg)] .= 0
 
 alaskageoms = data.geometry[data.Province_State .== "Alaska"]
@@ -476,8 +491,6 @@ lower48colors = colors[:, data.Province_State .∉ Ref(["Alaska", "Hawaii", "Pue
         return out
     end
 end
-
-# KY or TN has a lightswitch sometime in a lull
 
 anim = Plots.Animation()
 date = Date(names(data)[datarange[end]], dateformat"mm/dd/yy") + Year(2000) - Day(length(eachrow(lower48colors)) - 1)
