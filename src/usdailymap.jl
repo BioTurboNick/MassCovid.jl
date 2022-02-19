@@ -298,24 +298,6 @@ function fixweekendspikes!(series)
     end
 end
 
-function dampenspikes!(series)
-    # eliminate spikes by Windsorizing
-    for row ∈ eachrow(series)
-        sortedvals = row |> vec |> sort
-        maxdiffi = sortedvals |> diff |> argmax
-        if length(row) - maxdiffi > length(row) / 50
-            # no more than 2 spikes dampened per 100 days
-            maxdiffi = length(row) ÷ 50
-        end
-        thresholdval = sortedvals[maxdiffi + 1]
-        replacementval = sortedvals[maxdiffi]
-        for i ∈ reverse(axes(series, 2))
-            row[i] < thresholdval && continue
-            row[i] = replacementval
-        end
-    end
-end
-
 function fixspikes!(data, series)
     statefix!(data, series, "Alabama", 325)
     statefix!(data, series, "Alabama", 386)
@@ -450,10 +432,11 @@ series ./= data.POPESTIMATE2019
 fixnegatives!(series)
 fixspikes!(data, series)
 fixweekendspikes!(series)
-dampenspikes!(series)
+#dampenspikes!(series)                      FIX THIS
 fill_end!(series)
 seriesavg = reduce(hcat, sma.(eachrow(series), 7))
 seriesavg ./= maximum(seriesavg, dims = 1) # 0.0015
+seriesavg[seriesavg .< 0] .= 0
 seriesavg[isnan.(seriesavg)] .= 0
 
 alaskageoms = data.geometry[data.Province_State .== "Alaska"]
