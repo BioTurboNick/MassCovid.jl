@@ -8,6 +8,7 @@ using CSV
 using Missings
 using Smoothers
 using Statistics
+using ImageFiltering
 using InvertedIndices
 using Unicode
 
@@ -435,7 +436,7 @@ fixweekendspikes!(series)
 #dampenspikes!(series)                      FIX THIS
 fill_end!(series)
 seriesavg = reduce(hcat, sma.(eachrow(series), 7))
-seriesavg ./= maximum(seriesavg, dims = 1) # 0.0015
+seriesavg ./= mapwindow(maximum, seriesavg, (365, 1)) # 0.0015
 seriesavg[seriesavg .< 0] .= 0
 seriesavg[isnan.(seriesavg)] .= 0
 
