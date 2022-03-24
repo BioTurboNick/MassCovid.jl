@@ -27,7 +27,7 @@ isdead(a::AbstractAgent) = a.status == D
 
 pdeath(a::AbstractAgent) = 0.005
 preinfection(a::AbstractAgent) = 0.05
-pexposure(a::AbstractAgent) = 0.1 # social distancing factor
+pexposure(a::AbstractAgent) = 0.3 # social distancing factor
 envfactor() = 1.5
 vaccinationrate(a::AbstractAgent) = 0
 

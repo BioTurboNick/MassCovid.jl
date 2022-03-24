@@ -287,7 +287,7 @@ plot([boston_counts mwra_south_counts mwra_north_counts other_counts] ./ 2, labe
 #vline!([55], lw = 3, linecolor = :black, label = "2021 Boston Mask Mandate")
 savefig(joinpath("output", "mwra_cases_pop_polished.png"))
 
-plot([boston_counts mwra_north_counts mwra_south_counts other_counts][(end - 12):end,:] ./ 2, labels = ["Boston" "Greater Boston South" "Greater Boston North" "Outside Greater Boston"], lw = 3, yformatter=:plain,
+plot([boston_counts mwra_south_counts mwra_north_counts other_counts][(end - 12):end,:] ./ 2, labels = ["Boston" "Greater Boston South" "Greater Boston North" "Outside Greater Boston"], lw = 3, yformatter=:plain,
      xaxis=((1,length(weeks[(end - 12):end])),30), xticks=(1:2:length(weeks[(end - 12):end]), weeks[(end - 12):2:end]),
      ylabel="New cases/week", title="Massachusetts weekly cases by region\n per 100k", legend=:topleft)
 savefig(joinpath("output", "mwra_cases_pop_recent_polished.png"))

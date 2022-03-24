@@ -349,6 +349,8 @@ function fixspikes!(data, series)
     statefix!(data, series, "Louisiana", 149)
     countyfix!(data, series, "Louisiana", 531, [13, 21, 42, 46, 62])
 
+    statefix!(data, series, "Maine", 748, 763)
+
     statefix!(data, series, "Missouri", 254)
     statefix!(data, series, "Missouri", 414)
     countyfix!(data, series, "Missouri", 427, 429, [23, 52, 56, 63, 82, 87, 97, 106])
@@ -356,11 +358,14 @@ function fixspikes!(data, series)
     statefix!(data, series, "Missouri", 501)
     statefix!(data, series, "Missouri", 666)
 
+    statefix!(data, series, "Nebraska", 768)
+
     statefix!(data, series, "New York", 92, 94)
 
     statefix!(data, series, "New Hampshire", 640, 643)
 
     statefix!(data, series, "Nevada", 600)
+    statefix!(data, series, "Nevada", 784)
 
     statefix!(data, series, "Pennsylvania", 430, 431)
 
@@ -389,6 +394,8 @@ function fixspikes!(data, series)
     statefix!(data, series, "Texas", 518)
     statefix!(data, series, "Texas", 521)
     statefix!(data, series, "Texas", 524)
+
+    statefix!(data, series, "Vermont", 771)
 
     statefix!(data, series, "Washington", 547, 550)
 
@@ -497,7 +504,7 @@ for i ∈ 1:length(eachrow(lower48colors))
     Plots.frame(anim)
     date += Day(1)
 end
-for i = 1:20 # insert 20 more of the same frame at end
+for i = 1:20 # insert 20 more of the same frame at enda
     Plots.frame(anim)
 end
 mp4(anim, joinpath("output", "us_animation_map.mp4"), fps = 7)
