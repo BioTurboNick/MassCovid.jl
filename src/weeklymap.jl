@@ -39,7 +39,7 @@ function loadweekdata(path, date)
         names = sheet["A"][daterows]
 
         # remove "Unknown town"
-        unknowntown = findfirst(x -> x ∈ ("Unknown town", "Unknown"), names)
+        unknowntown = findfirst(∈(("Unknown town", "Unknown")), names)
         if !isnothing(unknowntown)
             deleteat!(daterows, unknowntown)
             deleteat!(names, unknowntown)

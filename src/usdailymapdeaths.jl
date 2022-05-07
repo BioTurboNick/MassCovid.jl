@@ -160,7 +160,7 @@ function preparedata!(data, datarange)
     akbblprow = selectcounty(data, "Alaska", "Bristol Bay plus Lake and Peninsula") # Bristol Bay, Lake and Peninsula
     addcountycases!(data, "Alaska", "Bristol Bay", akbblprow, akpop, datarange)
     addcountycases!(data, "Alaska", "Lake and Peninsula", akbblprow, akpop, datarange)
-    data.Combined_Key[data.Admin2 .== "Lake and Peninsula"] = "Lake and Peninsula, Alaska, US"
+    data.Combined_Key[data.Admin2 .== "Lake and Peninsula"] .= "Lake and Peninsula, Alaska, US"
     delete!(data, selectcounties(data, "Alaska", ["Bristol Bay plus Lake and Peninsula", "Chugach", "Copper River"]))
 
     # Massachusetts
