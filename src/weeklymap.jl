@@ -165,6 +165,7 @@ categorycounts = []
 pposcategorycounts = []
 
 for w ∈ weeks
+    println(w)
     weekstr = lowercase(Dates.format(w, datefmt))
     path = w ∈ weeks[1:22] ? downloadweeklyreport(weekstr) :
                              downloadweeklyreport2(weekstr)
@@ -173,13 +174,13 @@ for w ∈ weeks
     ndims(risklevel) == 1 || (risklevel = dropdims(risklevel, dims = 2))
 
     colors = [riskcolors[r] for r ∈ risklevel] |> permutedims
-    push!(ratemaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Risk Level\n$(w)", labels=labels))
+    push!(ratemaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Risk Level\n$(w)"))
     savefig(joinpath("output", "$(weekstr).png"))
 
     pposrisklevel = calculatepposrisklevels(counts, ppos)
     ndims(pposrisklevel) == 1 || (pposrisklevel = dropdims(pposrisklevel, dims = 2))
     colors = [pposriskcolors[r] for r ∈ pposrisklevel] |> permutedims
-    push!(pposmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Percent Positivity Risk Level\n$(w)", labels=labels))
+    push!(pposmaps, plot(geoms, fillcolor=colors, linecolor=:gray75, linewidth=0.5, size=(1024,640), grid=false, showaxis=false, ticks=false, title="Massachusetts COVID-19 Percent Positivity Risk Level\n$(w)"))
     savefig(joinpath("output", "$(weekstr)-percent-positive.png"))
 
     # calculate weighted categories and append them
@@ -204,7 +205,7 @@ anim = Plots.Animation()
 for i ∈ eachindex(weeks)
     plot(ratemaps[i])
     areaplot!(categorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(riskcolors)))), linewidth=0, widen=false,
-                     xaxis=((1,length(weeks)),30), xticks=(1:4:length(weeks), weeks[1:4:end]),
+                     xaxis=((1,length(weeks)),30), xticks=(1:5:length(weeks), weeks[1:5:end]),
                      yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
                      tick_direction=:in,
                      inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,
@@ -221,7 +222,7 @@ anim = Plots.Animation()
 for i ∈ eachindex(weeks)
     plot(pposmaps[i])
     areaplot!(pposcategorycounts[1:i,:], fillcolor=permutedims(collect(values(sort(pposriskcolors)))), linewidth=0, widen=false,
-                     xaxis=((1,length(weeks)),30), xticks=(1:4:length(weeks), weeks[1:4:end]),
+                     xaxis=((1,length(weeks)),30), xticks=(1:5:length(weeks), weeks[1:5:end]),
                      yaxis=("Population (millions)",), yformatter = x -> x / 1000000,
                      tick_direction=:in,
                      inset=(1, bbox(0.06, 0.1, 0.52, 0.3, :bottom)), subplot=2,

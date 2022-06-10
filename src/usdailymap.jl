@@ -443,8 +443,12 @@ fixweekendspikes!(series)
 #dampenspikes!(series)                      FIX THIS
 fill_end!(series)
 seriesavg = reduce(hcat, sma.(eachrow(series), 7))
-seriesavg ./= mapwindow(maximum, seriesavg, (365, 1)) # 0.0015
-seriesavg[seriesavg .< 0] .= 0
+seriesavg = diff(seriesavg, dims = 1)
+seriesavg = reduce(hcat, sma.(eachcol(seriesavg), 14))
+seriesavg = map(seriesavg) do x
+    x == 0 ? 0 : (sign(x) * sqrt(abs(x)))
+end
+seriesavg ./= maximum(abs.(seriesavg), dims = 1)
 seriesavg[isnan.(seriesavg)] .= 0
 
 alaskageoms = data.geometry[data.Province_State .== "Alaska"]
@@ -452,8 +456,8 @@ hawaiigeoms = data.geometry[data.Province_State .== "Hawaii"]
 #puertoricogeoms = data.geometry[data.Province_State .== "Puerto Rico"]
 lower48geoms = data.geometry[data.Province_State .∉ Ref(["Alaska", "Hawaii", "Puerto Rico"])]
 
-grad = cgrad(:thermal)
-colors = map(x -> grad[x], seriesavg)
+grad = cgrad(:redsblues, rev = true)
+colors = map(x -> grad[(x + 1) / 2], seriesavg)
 alaskacolors = colors[:, data.Province_State .== "Alaska"]
 hawaiicolors = colors[:, data.Province_State .== "Hawaii"]
 lower48colors = colors[:, data.Province_State .∉ Ref(["Alaska", "Hawaii", "Puerto Rico"])]
@@ -491,15 +495,15 @@ for i ∈ 1:length(eachrow(lower48colors))
     println("Day $i")
     lower48plot = plot(lower48geoms, fillcolor=permutedims(@view lower48colors[i, :]), size=(2048, 1280),
         grid=false, showaxis=false, ticks=false, aspect_ratio=1.2, title="United States COVID-19 Hot Spots\nNicholas C Bauer PhD | Twitter: @bioturbonick",
-        titlefontcolor=:white, background_color=:black, linecolor=grad[0.0])
+        titlefontcolor=:white, background_color=:black, linecolor=grad[0.5])
     annotate!([(-75,30.75, ("$date", 36, :white))])
     plot!(lower48plot, alaskageoms, fillcolor=permutedims(@view alaskacolors[i, :]),
         grid=false, showaxis=false, ticks=false, xlims=(-180,-130), ylims=(51, 78), aspect_ratio=2,
-        linecolor=grad[0.0],
+        linecolor=grad[0.5],
         inset=(1, bbox(0.0, 0.0, 0.3, 0.3, :bottom, :left)), subplot=2)
     plot!(lower48plot, hawaiigeoms, fillcolor=permutedims(@view hawaiicolors[i, :]),
         grid=false, showaxis=false, ticks=false, xlims=(-160, -154), ylims=(18, 23),
-        linecolor=grad[0.0],
+        linecolor=grad[0.5],
         inset=(1, bbox(0.25, 0.0, 0.2, 0.2, :bottom, :left)), subplot=3)
     Plots.frame(anim)
     date += Day(1)
