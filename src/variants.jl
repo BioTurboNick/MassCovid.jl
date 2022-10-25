@@ -2,6 +2,7 @@ using CSV
 using DataFrames
 using Dates
 using Downloads
+using Plots
 
 function downloadvariantreport()
     path = joinpath("input", "variantreport.csv")
@@ -27,8 +28,9 @@ bypublishing = groupby(variantdata, :published_date_date)
 mostrecentdata = bypublishing[end]
 sort!(mostrecentdata, :week_ending_date)
 
-mindate = Dates.format(minimum(mostrecentdata.week_ending_date), dateformat"m/d/yy")
-maxdate = Dates.format(maximum(mostrecentdata.week_ending_date), dateformat"m/d/yy")
+# when the report comes out, the date is two days ahead of the case data, so we shift one less
+mindate = Dates.format(minimum(mostrecentdata.week_ending_date) - Day(2), dateformat"m/d/yy")
+maxdate = Dates.format(maximum(mostrecentdata.week_ending_date) - Day(2), dateformat"m/d/yy")
 
 jhudata = CSV.read(downloadcountycasedata(), DataFrame)
 colnames = propertynames(jhudata)
@@ -96,10 +98,16 @@ regionplots = map(enumerate(byregion)) do (i, br)
         end
         plot!(p1, v.week_ending_date, variantcases, label = v.variant[1],
             ribbon = (abs.(variantcaseslow .- variantcases), abs.(variantcaseshigh .- variantcases)), linewidth = 3)
+        lowribbonlog = abs.(log10.(variantcaseslow) .- log10.(variantcases))
+        lowribbonlog[isinf.(lowribbonlog)] .= 10.0
+        highribbonlog = abs.(log10.(variantcaseshigh) .- log10.(variantcases))
+        highribbonlog[isinf.(lowribbonlog)] .= 10.0
         plot!(p2, v.week_ending_date, log10.(variantcases), label = v.variant[1],
-            ribbon = (abs.(log10.(variantcaseslow) .- log10.(variantcases)), abs.(log10.(variantcaseshigh) .- log10.(variantcases))), linewidth = 3)
+            ribbon = (lowribbonlog, highribbonlog), linewidth = 3)
     end
     plot!(p1, ylims = (0, maxcases * 1.1))
+    savefig(p1, joinpath("output", "variantcases $i.png"))
     plot!(p2, ylims = (1, log10(maxcases) * 1.1))
+    savefig(p2, joinpath("output", "variantcases log10 $i.png"))
     return p1, p2
 end
