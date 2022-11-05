@@ -351,12 +351,16 @@ function fixspikes!(data, series)
 
     statefix!(data, series, "Maine", 748, 763)
 
+    statefix!(data, series, "Minnesota", 779)
+
     statefix!(data, series, "Missouri", 254)
     statefix!(data, series, "Missouri", 414)
     countyfix!(data, series, "Missouri", 427, 429, [23, 52, 56, 63, 82, 87, 97, 106])
     statefix!(data, series, "Missouri", 451)
     statefix!(data, series, "Missouri", 501)
     statefix!(data, series, "Missouri", 666)
+
+    statefix!(data, series, "Montana", 772)
 
     statefix!(data, series, "Nebraska", 768)
 
@@ -407,6 +411,7 @@ function fixspikes!(data, series)
     statefix!(data, series, "Utah", 86)
     statefix!(data, series, "Utah", 88)
     statefix!(data, series, "Utah", 309, 310)
+    statefix!(data, series, "Utah", 357)
 end
 
 function fill_end!(series)
@@ -443,12 +448,19 @@ fixweekendspikes!(series)
 #dampenspikes!(series)                      FIX THIS
 fill_end!(series)
 seriesavg = reduce(hcat, sma.(eachrow(series), 7))
-seriesavg = diff(seriesavg, dims = 1)
-seriesavg = reduce(hcat, sma.(eachcol(seriesavg), 14))
-seriesavg = map(seriesavg) do x
-    x == 0 ? 0 : (sign(x) * sqrt(abs(x)))
-end
-seriesavg ./= maximum(abs.(seriesavg), dims = 1)
+
+# for red-blue map
+# seriesavg = diff(seriesavg, dims = 1)
+# seriesavg = reduce(hcat, sma.(eachcol(seriesavg), 14))
+# seriesavg = map(seriesavg) do x
+#     x == 0 ? 0 : (sign(x) * sqrt(abs(x)))
+# end
+# seriesavg ./= maximum(abs.(seriesavg), dims = 1)
+
+# for thermal map
+seriesavg ./= maximum(seriesavg[1:findfirst(==(Symbol("12/25/21")), colnames) - first(datarange), :], dims = 1)
+seriesavg[seriesavg .< 0] .= 0
+
 seriesavg[isnan.(seriesavg)] .= 0
 
 alaskageoms = data.geometry[data.Province_State .== "Alaska"]
@@ -456,8 +468,14 @@ hawaiigeoms = data.geometry[data.Province_State .== "Hawaii"]
 #puertoricogeoms = data.geometry[data.Province_State .== "Puerto Rico"]
 lower48geoms = data.geometry[data.Province_State .∉ Ref(["Alaska", "Hawaii", "Puerto Rico"])]
 
-grad = cgrad(:redsblues, rev = true)
-colors = map(x -> grad[(x + 1) / 2], seriesavg)
+# for red-blue map
+#grad = cgrad(:redsblues, rev = true)
+#colors = map(x -> grad[(x + 1) / 2], seriesavg)
+
+# for thermal map
+grad = cgrad(:thermal)
+colors = map(x -> grad[x], seriesavg)
+
 alaskacolors = colors[:, data.Province_State .== "Alaska"]
 hawaiicolors = colors[:, data.Province_State .== "Hawaii"]
 lower48colors = colors[:, data.Province_State .∉ Ref(["Alaska", "Hawaii", "Puerto Rico"])]
@@ -495,15 +513,20 @@ for i ∈ 1:length(eachrow(lower48colors))
     println("Day $i")
     lower48plot = plot(lower48geoms, fillcolor=permutedims(@view lower48colors[i, :]), size=(2048, 1280),
         grid=false, showaxis=false, ticks=false, aspect_ratio=1.2, title="United States COVID-19 Hot Spots\nNicholas C Bauer PhD | Twitter: @bioturbonick",
-        titlefontcolor=:white, background_color=:black, linecolor=grad[0.5])
+        titlefontcolor=:white, background_color=:black,
+        #linecolor=grad[0.5], # for red-blue map
+        linecolor=grad[0.0] # for thermal map
+        )
     annotate!([(-75,30.75, ("$date", 36, :white))])
     plot!(lower48plot, alaskageoms, fillcolor=permutedims(@view alaskacolors[i, :]),
         grid=false, showaxis=false, ticks=false, xlims=(-180,-130), ylims=(51, 78), aspect_ratio=2,
-        linecolor=grad[0.5],
+        #linecolor=grad[0.5], # for red-blue map
+        linecolor=grad[0.0], # for thermal map
         inset=(1, bbox(0.0, 0.0, 0.3, 0.3, :bottom, :left)), subplot=2)
     plot!(lower48plot, hawaiigeoms, fillcolor=permutedims(@view hawaiicolors[i, :]),
         grid=false, showaxis=false, ticks=false, xlims=(-160, -154), ylims=(18, 23),
-        linecolor=grad[0.5],
+        #linecolor=grad[0.5], # for red-blue map
+        linecolor=grad[0.0], # for thermal map
         inset=(1, bbox(0.25, 0.0, 0.2, 0.2, :bottom, :left)), subplot=3)
     Plots.frame(anim)
     date += Day(1)

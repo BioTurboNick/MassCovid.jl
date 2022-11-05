@@ -199,7 +199,11 @@ function loadcountyweatherdata(data)
         Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/2020.csv.gz", path2020)
     end
     path2021 = joinpath("input", "weather_2021.csv.gz")
-    Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/2021.csv.gz", path2021)
+    if !isfile(path2021)
+        Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/2021.csv.gz", path2021)
+    end
+    path2022 = joinpath("input", "weather_2022.csv.gz")
+    Downloads.download("ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/2022.csv.gz", path2022)
 
     header = ["ID", "DATE", "ELEMENT", "VALUE", "MFLAG", "QFLAG", "SFLAG", "TIME"]
     weatherdata = nothing
@@ -209,6 +213,11 @@ function loadcountyweatherdata(data)
         close(stream)
     end
     open(path2021) do f
+        stream = GzipDecompressorStream(f)
+        append!(weatherdata, CSV.read(stream, DataFrame; header))
+        close(stream)
+    end
+    open(path2022) do f
         stream = GzipDecompressorStream(f)
         append!(weatherdata, CSV.read(stream, DataFrame; header))
         close(stream)
