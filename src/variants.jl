@@ -6,7 +6,6 @@ using Plots
 
 function downloadvariantreport()
     path = joinpath("input", "variantreport.csv")
-    ispath(path) && return path
     Downloads.download("https://data.cdc.gov/api/views/jr58-6ysp/rows.csv?accessType=DOWNLOAD", path)
 end
 
@@ -63,7 +62,7 @@ regioncases = map(1:length(unique(mostrecentdata.usa_or_hhsregion)) - 1) do i
     regioncases = reduce(filter(s -> s[1] ∈ region, statecases), init = zeros(nweeks)) do a, (state, cases)
         a .+ cases
     end
-    (string(i) => regioncases)
+    (string(i) => max.(0, regioncases))
 end
 
 pushfirst!(regioncases, "USA" => reduce(statecases, init = zeros(nweeks)) do a, (state, cases)
