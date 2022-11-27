@@ -76,6 +76,7 @@ byregion = groupby(mostrecentdata, :usa_or_hhsregion)
 regionplots = map(enumerate(byregion)) do (i, br)
     p1 = plot(legend = :outerright, size = (768, 384))
     p2 = plot(legend = :outerright, size = (768, 384))
+    p3 = plot(legend = :outerright, size = (768, 384))
     byvariant = groupby(br, :variant)
     maxcases = 0
     foreach(byvariant) do v
@@ -108,5 +109,8 @@ regionplots = map(enumerate(byregion)) do (i, br)
     savefig(p1, joinpath("output", "variantcases $i.png"))
     plot!(p2, ylims = (1, log10(maxcases) * 1.1))
     savefig(p2, joinpath("output", "variantcases log10 $i.png"))
-    return p1, p2
+    areaplot!(p3, byvariant[1].week_ending_date, reduce(hcat, [v.share .* regioncases[v[1, :usa_or_hhsregion]] for v ∈ byvariant]), label = reduce(hcat, [v.variant[1] for v ∈ byvariant]))
+    plot!(p3, ylims = (1, maxcases * 1.2))
+    savefig(p3, joinpath("output", "variantcases area $i.png"))
+    return p1, p2, p3
 end
