@@ -9,9 +9,9 @@ function downloadvariantreport()
     Downloads.download("https://data.cdc.gov/api/views/jr58-6ysp/rows.csv?accessType=DOWNLOAD", path)
 end
 
-function downloadstatecasedata()
-    path = joinpath("input", "us-states.csv")
-    Downloads.download("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-states.csv", path)
+function downloadcountycasedata()
+    path = joinpath("input", "time_series_covid19_confirmed_US.csv")
+    Downloads.download("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv", path)
 end
 
 variantdata = CSV.read(downloadvariantreport(), DataFrame)
@@ -28,17 +28,18 @@ mostrecentdata = bypublishing[end]
 sort!(mostrecentdata, :week_ending_date)
 
 # when the report comes out, the date is two days ahead of the case data, so we shift one less
-mindatedate = minimum(mostrecentdata.week_ending_date) - Day(2)
 mindate = Dates.format(minimum(mostrecentdata.week_ending_date) - Day(2), dateformat"m/d/yy")
 maxdate = Dates.format(maximum(mostrecentdata.week_ending_date) - Day(2), dateformat"m/d/yy")
 
-nytdata = CSV.read(downloadstatecasedata(), DataFrame)
-filter!(:date => x -> x ≥ mindatedate, nytdata)
+jhudata = CSV.read(downloadcountycasedata(), DataFrame)
+colnames = propertynames(jhudata)
+datarange = (findfirst(==(Symbol(mindate)), colnames) - 6 - 7):findlast(==(Symbol(maxdate)), colnames)
+bystate = groupby(jhudata, :Province_State)
 
-bystate = groupby(nytdata, :state)
 statecases = map(enumerate(bystate)) do (i, s)
-    weeklycases = s.cases[8:7:end] .- s.cases[1:7:end-7]
-    (s[1, :state], weeklycases)
+    dailycases = sum(Array{Float64, 2}(s[!, datarange]), dims = 1) |> vec
+    weeklycases = dailycases[8:7:end] .- dailycases[1:7:end-7]
+    (s[1, :Province_State], weeklycases)
 end
 
 regionstates = Dict(
