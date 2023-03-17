@@ -28,9 +28,9 @@ mostrecentdata = bypublishing[end]
 sort!(mostrecentdata, :week_ending_date)
 
 # when the report comes out, the date is two days ahead of the case data, so we shift one less
-mindatedate = minimum(mostrecentdata.week_ending_date) - Day(2)
-mindate = Dates.format(minimum(mostrecentdata.week_ending_date) - Day(2), dateformat"m/d/yy")
-maxdate = Dates.format(maximum(mostrecentdata.week_ending_date) - Day(2), dateformat"m/d/yy")
+mindatedate = minimum(mostrecentdata.week_ending_date) - Day(2 + 7)
+mindate = Dates.format(minimum(mostrecentdata.week_ending_date) - Day(2 + 7), dateformat"m/d/yy")
+maxdate = Dates.format(maximum(mostrecentdata.week_ending_date) - Day(2 + 7), dateformat"m/d/yy")
 
 nytdata = CSV.read(downloadstatecasedata(), DataFrame)
 filter!(:date => x -> x ≥ mindatedate, nytdata)
