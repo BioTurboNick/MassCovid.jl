@@ -11,7 +11,7 @@ end
 
 function downloadstatecasedata()
     path = joinpath("input", "us-states.csv")
-    Downloads.download("https://api.covidactnow.org/v2/states.timeseries.csv?apiKey=11682d9832ff4a4caabc54c0451b8e76", path)
+    Downloads.download("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-states.csv", path)
 end
 
 variantdata = CSV.read(downloadvariantreport(), DataFrame)
@@ -27,31 +27,31 @@ bypublishing = groupby(variantdata, :published_date_date)
 mostrecentdata = bypublishing[end]
 sort!(mostrecentdata, :week_ending_date)
 
-mindatedate = minimum(mostrecentdata.week_ending_date) - Day(2)
-maxdatedate = maximum(mostrecentdata.week_ending_date) - Day(2)
-mindate = Dates.format(mindatedate, dateformat"m/d/yy")
-maxdate = Dates.format(maxdatedate, dateformat"m/d/yy")
+# when the report comes out, the date is two days ahead of the case data, so we shift one less
+mindatedate = minimum(mostrecentdata.week_ending_date) - Day(2 + 7)
+mindate = Dates.format(minimum(mostrecentdata.week_ending_date) - Day(2 + 7), dateformat"m/d/yy")
+maxdate = Dates.format(maximum(mostrecentdata.week_ending_date) - Day(2 + 7), dateformat"m/d/yy")
 
-candata = CSV.read(downloadstatecasedata(), DataFrame)
-filter!(:date => x -> maxdatedate ≥ x ≥ mindatedate, candata)
+nytdata = CSV.read(downloadstatecasedata(), DataFrame)
+filter!(:date => x -> x ≥ mindatedate, nytdata)
 
-bystate = groupby(candata, :state)
+bystate = groupby(nytdata, :state)
 statecases = map(enumerate(bystate)) do (i, s)
-    weeklycases = s[8:7:end, Symbol("actuals.cases")] .- s[1:7:end-7, Symbol("actuals.cases")]
+    weeklycases = s.cases[8:7:end] .- s.cases[1:7:end-7]
     (s[1, :state], weeklycases)
 end
 
 regionstates = Dict(
-    1 => ["CT", "ME", "MA", "NH", "RI", "VT"],
-    2 => ["NJ", "NY", "VI", "PR"],
-    3 => ["DE", "DC", "MD", "PA", "VA", "WV"],
-    4 => ["AL", "FL", "GA", "KY", "MS", "NC", "SC", "TN"],
-    5 => ["IL", "IN", "MI", "MN", "OH", "WI"],
-    6 => ["AR", "LA", "NM", "OK", "TX"],
-    7 => ["IA", "KS", "MO", "NE"],
-    8 => ["CO", "MT", "ND", "SD", "UT", "WY"],
-    9 => ["AZ", "CA", "HI", "NV", "AS", "GU", "NMI"],
-    10 => ["AK", "ID", "OR", "WA"],
+    1 => ["Connecticut", "Maine", "Massachusetts", "New Hampshire", "Rhode Island", "Vermont"],
+    2 => ["New Jersey", "New York", "Virgin Islands", "Puerto Rico"],
+    3 => ["Delaware", "District of Columbia", "Maryland", "Pennsylvania", "Virginia", "West Virginia"],
+    4 => ["Alabama", "Florida", "Georgia", "Kentucky", "Mississippi", "North Carolina", "South Carolina", "Tennessee"],
+    5 => ["Illinois", "Indiana", "Michigan", "Minnesota", "Ohio", "Wisconsin"],
+    6 => ["Arkansas", "Louisiana", "New Mexico", "Oklahoma", "Texas"],
+    7 => ["Iowa", "Kansas", "Missouri", "Nebraska"],
+    8 => ["Colorado", "Montana", "North Dakota", "South Dakota", "Utah", "Wyoming"],
+    9 => ["Arizona", "California", "Hawaii", "Nevada", "American Samoa", "Guam", "Northern Mariana Islands"],
+    10 => ["Alaska", "Idaho", "Oregon", "Washington"],
 )
 
 nweeks = length(statecases[1][2])
@@ -59,7 +59,6 @@ nweeks = length(statecases[1][2])
 regioncases = map(1:length(unique(mostrecentdata.usa_or_hhsregion)) - 1) do i
     region = regionstates[i]
     regioncases = reduce(filter(s -> s[1] ∈ region, statecases), init = zeros(nweeks)) do a, (state, cases)
-        @show length(a), length(cases)
         a .+ cases
     end
     (string(i) => max.(0, regioncases))
@@ -80,64 +79,37 @@ regionplots = map(enumerate(byregion)) do (i, br)
     byvariant = groupby(br, :variant)
     maxcases = 0
     foreach(byvariant) do v
-        println(v.variant[1])
-        rvcases = regioncases[v[1, :usa_or_hhsregion]]
-        replace!(x -> x === missing ? 0.0 : x, rvcases)
-        vshare = v.share[2:end]
-        vshare_lo = v.share_lo[2:end]
-        vshare_hi = v.share_hi[2:end]
-        vweekending = v.week_ending_date[2:end]
-        if nrow(v) < nweeks
-            nweekspad = fill(0.0, nweeks - nrow(v) + 1)
-            vshare = vcat(vshare, nweekspad)
-            vshare_lo = vcat(vshare_lo, nweekspad)
-            vshare_hi = vcat(vshare_hi, nweekspad)
-            vweekending = vcat(vweekending, fill(vweekending[end], nweeks - nrow(v) + 1) .+ [Day(7) for i ∈ 1:nweeks - nrow(v) + 1])
-        end
-
-        variantcases = vshare .* rvcases
-        replace!(x -> x === missing ? 0.0 : x, variantcases)
-        variantsharelo = map(vshare_lo) do x
+        variantcases = v.share .* regioncases[v[1, :usa_or_hhsregion]]
+        variantsharelo = map(v.share_lo) do x
             (ismissing(x) || x == "NULL") ? 0.0 :
                 x isa Float64 ? x :
                 parse(Float64, x)
         end
-        variantsharehi = map(vshare_hi) do x
+        variantsharehi = map(v.share_hi) do x
             (ismissing(x) || x == "NULL") ? 0.0 :
                 x isa Float64 ? x :
                 parse(Float64, x)
         end
-        variantcaseslow = variantsharelo .* rvcases
-        variantcaseshigh = variantsharehi .* rvcases
+        variantcaseslow = variantsharelo .* regioncases[v[1, :usa_or_hhsregion]]
+        variantcaseshigh = variantsharehi .* regioncases[v[1, :usa_or_hhsregion]]
         if v.variant[1] ∉ ("B.1.1.529", "BA.1.1")
             maxcases = max(maximum(variantcases), maxcases)
         end
-        plot!(p1, vweekending, variantcases, label = v.variant[1],
+        plot!(p1, v.week_ending_date, variantcases, label = v.variant[1],
             ribbon = (abs.(variantcaseslow .- variantcases), abs.(variantcaseshigh .- variantcases)), linewidth = 3)
         lowribbonlog = abs.(log10.(variantcaseslow) .- log10.(variantcases))
         lowribbonlog[isinf.(lowribbonlog)] .= 10.0
         highribbonlog = abs.(log10.(variantcaseshigh) .- log10.(variantcases))
         highribbonlog[isinf.(lowribbonlog)] .= 10.0
-        plot!(p2, vweekending, log10.(variantcases), label = v.variant[1],
+        plot!(p2, v.week_ending_date, log10.(variantcases), label = v.variant[1],
             ribbon = (lowribbonlog, highribbonlog), linewidth = 3)
     end
     plot!(p1, ylims = (0, maxcases * 1.1))
-    mkpath("output")
     savefig(p1, joinpath("output", "variantcases $i.png"))
     plot!(p2, ylims = (1, log10(maxcases) * 1.1))
     savefig(p2, joinpath("output", "variantcases log10 $i.png"))
-
-    # vshares = map(enumerate(byvariant)) do (i, v)
-    #     vshare = v.share[2:end]
-    #     if nrow(v) < nweeks
-    #         nweekspad = fill(0.0, nweeks - nrow(v))
-    #         vshare = vcat(vshare, nweekspad)
-    #     end
-    #     println(length(vshare))
-    # end
-
-    # areaplot!(p3, byvariant[1].week_ending_date[2:end], reduce(hcat, vshares), label = reduce(hcat, [v.variant[1] for v ∈ byvariant]))
-    # plot!(p3, ylims = (1, maxcases * 1.2))
-    # savefig(p3, joinpath("output", "variantcases area $i.png"))
-    return p1, p2#, p3
+    areaplot!(p3, byvariant[1].week_ending_date, reduce(hcat, [v.share .* regioncases[v[1, :usa_or_hhsregion]] for v ∈ byvariant]), label = reduce(hcat, [v.variant[1] for v ∈ byvariant]))
+    plot!(p3, ylims = (1, maxcases * 1.2))
+    savefig(p3, joinpath("output", "variantcases area $i.png"))
+    return p1, p2, p3
 end
