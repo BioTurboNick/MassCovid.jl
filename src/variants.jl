@@ -3,6 +3,7 @@ using DataFrames
 using Dates
 using Downloads
 using Plots
+using Smoothers
 
 function downloadvariantreport()
     path = joinpath("input", "variantreport.csv")
@@ -27,17 +28,26 @@ bypublishing = groupby(variantdata, :published_date_date)
 mostrecentdata = bypublishing[end]
 sort!(mostrecentdata, :week_ending_date)
 
-mindatedate = minimum(mostrecentdata.week_ending_date) - Day(2)
-maxdatedate = maximum(mostrecentdata.week_ending_date) - Day(2)
+mindatedate = minimum(mostrecentdata.week_ending_date) - Day(3)
+maxdatedate = maximum(mostrecentdata.week_ending_date) - Day(3)
 mindate = Dates.format(mindatedate, dateformat"m/d/yy")
 maxdate = Dates.format(maxdatedate, dateformat"m/d/yy")
 
 candata = CSV.read(downloadstatecasedata(), DataFrame)
 filter!(:date => x -> maxdatedate ≥ x ≥ mindatedate, candata)
 
+nweeks = (maxdatedate - mindatedate) ÷ Day(7)
+
 bystate = groupby(candata, :state)
 statecases = map(enumerate(bystate)) do (i, s)
     weeklycases = s[8:7:end, Symbol("actuals.cases")] .- s[1:7:end-7, Symbol("actuals.cases")]
+    weeklycases[ismissing.(weeklycases)] .= 0
+    weeklycases[weeklycases .< 0] .= 0
+
+    if length(weeklycases) < nweeks
+        append!(weeklycases, fill(0, nweeks - length(weeklycases)))
+    end
+    weeklycases = ([0.0; 0.0; sma(Int64[weeklycases...], 3)] .+ weeklycases) / 2
     (s[1, :state], weeklycases)
 end
 
@@ -54,12 +64,9 @@ regionstates = Dict(
     10 => ["AK", "ID", "OR", "WA"],
 )
 
-nweeks = length(statecases[1][2])
-
 regioncases = map(1:length(unique(mostrecentdata.usa_or_hhsregion)) - 1) do i
     region = regionstates[i]
     regioncases = reduce(filter(s -> s[1] ∈ region, statecases), init = zeros(nweeks)) do a, (state, cases)
-        @show length(a), length(cases)
         a .+ cases
     end
     (string(i) => max.(0, regioncases))
@@ -71,6 +78,8 @@ end)
 
 regioncases = Dict(regioncases...)
 
+#  TODO: remove low variants
+
 byregion = groupby(mostrecentdata, :usa_or_hhsregion)
 
 regionplots = map(enumerate(byregion)) do (i, br)
@@ -80,22 +89,23 @@ regionplots = map(enumerate(byregion)) do (i, br)
     byvariant = groupby(br, :variant)
     maxcases = 0
     foreach(byvariant) do v
-        println(v.variant[1])
         rvcases = regioncases[v[1, :usa_or_hhsregion]]
         replace!(x -> x === missing ? 0.0 : x, rvcases)
         vshare = v.share[2:end]
         vshare_lo = v.share_lo[2:end]
         vshare_hi = v.share_hi[2:end]
         vweekending = v.week_ending_date[2:end]
-        if nrow(v) < nweeks
+        println(nrow(v))
+        if nrow(v) < nweeks + 1
             nweekspad = fill(0.0, nweeks - nrow(v) + 1)
             vshare = vcat(vshare, nweekspad)
             vshare_lo = vcat(vshare_lo, nweekspad)
             vshare_hi = vcat(vshare_hi, nweekspad)
-            vweekending = vcat(vweekending, fill(vweekending[end], nweeks - nrow(v) + 1) .+ [Day(7) for i ∈ 1:nweeks - nrow(v) + 1])
+            vweekending = vcat(vweekending, fill(vweekending[end], nweeks + 1 - nrow(v)) .+ [Day(7) * i for i ∈ 1:nweeks + 1 - nrow(v)])
         end
 
         variantcases = vshare .* rvcases
+        v.variant[1] == "XBB.1.5" && println(variantcases)
         replace!(x -> x === missing ? 0.0 : x, variantcases)
         variantsharelo = map(vshare_lo) do x
             (ismissing(x) || x == "NULL") ? 0.0 :
