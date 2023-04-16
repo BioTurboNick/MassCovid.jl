@@ -95,7 +95,6 @@ regionplots = map(enumerate(byregion)) do (i, br)
         vshare_lo = v.share_lo[2:end]
         vshare_hi = v.share_hi[2:end]
         vweekending = v.week_ending_date[2:end]
-        println(nrow(v))
         if nrow(v) < nweeks + 1
             nweekspad = fill(0.0, nweeks - nrow(v) + 1)
             vshare = vcat(vshare, nweekspad)
@@ -105,7 +104,6 @@ regionplots = map(enumerate(byregion)) do (i, br)
         end
 
         variantcases = vshare .* rvcases
-        v.variant[1] == "XBB.1.5" && println(variantcases)
         replace!(x -> x === missing ? 0.0 : x, variantcases)
         variantsharelo = map(vshare_lo) do x
             (ismissing(x) || x == "NULL") ? 0.0 :
