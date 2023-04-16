@@ -16,12 +16,26 @@ function downloadstatecasedata()
 end
 
 variantdata = CSV.read(downloadvariantreport(), DataFrame)
+
 transform!(variantdata,
     :week_ending => (x -> DateTime.(x, dateformat"m/d/Y H:M:S p")) => :week_ending_date,
     :published_date => (x -> DateTime.(x, dateformat"m/d/Y H:M:S p")) => :published_date_date)
 sort!(variantdata, :published_date_date)
 
 filter!(:week_ending_date => (x -> x ≥ Date(2021, 12, 1)), variantdata)
+
+# identify variants that have reached at least 5% in any region
+majorvariants = last.(keys(filter(x -> any(>(0.5), x.share), groupby(variantdata, :variant))))
+# identify variants that are larger today than they were 4 weeks ago
+newvariants = Set()
+for br ∈ groupby(variantdata, :usa_or_hhsregion)
+    byvariant = groupby(br, :variant)
+    # identify variants that are >2x larger today than they were 4 weeks ago
+    nv = last.(keys(filter(x -> x.share[end] > x.share[max(1, end - 4)] * 2, byvariant)))
+    union!(newvariants, nv)
+end
+included_variants = union(majorvariants, newvariants)
+filter!(x -> x.variant ∈ included_variants, variantdata)
 
 bypublishing = groupby(variantdata, :published_date_date)
 
