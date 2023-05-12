@@ -101,9 +101,9 @@ regioncases = Dict(regioncases...)
 byregion = groupby(mostrecentdata, :usa_or_hhsregion)
 
 regionplots = map(enumerate(byregion)) do (i, br)
-    p1 = plot(legend = :outerright, size = (768, 384))
-    p2 = plot(legend = :outerright, size = (768, 384))
-    p3 = plot(legend = :outerright, size = (768, 384))
+    p1 = plot(legend = :outerright, size = (768, 384), xlims = (mindatedate, maxdatedate))
+    p2 = plot(legend = :outerright, size = (768, 384), xlims = (mindatedate, maxdatedate))
+    p3 = plot(legend = :outerright, size = (768, 384), xlims = (mindatedate, maxdatedate))
     byvariant = groupby(br, :variant)
     maxcases = 0
     foreach(byvariant) do v
