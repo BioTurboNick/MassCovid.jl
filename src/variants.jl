@@ -58,14 +58,20 @@ nweeks = (maxdatedate - mindatedate) ÷ Day(7)
 
 bystate = groupby(candata, :state)
 statecases = map(enumerate(bystate)) do (i, s)
-    weeklycases = s[8:7:end, Symbol("actuals.cases")] .- s[1:7:end-7, Symbol("actuals.cases")]
-    weeklycases[ismissing.(weeklycases)] .= 0
-    weeklycases[weeklycases .< 0] .= 0
+    #weeklycases = s[8:7:end, Symbol("actuals.cases")] .- s[1:7:end-7, Symbol("actuals.cases")]
+    weeklycases = s[8:7:end, Symbol("metrics.weeklyCovidAdmissionsPer100k")] .- s[1:7:end-7, Symbol("metrics.weeklyCovidAdmissionsPer100k")]
+    
+    if all(ismissing, weeklycases)
+        weeklycases = similar(weeklycases, Float64)
+    else
+        weeklycases[ismissing.(weeklycases)] .= 0.0
+    end
+    weeklycases[weeklycases .< 0] .= 0.0
 
     if length(weeklycases) < nweeks
         append!(weeklycases, fill(0, nweeks - length(weeklycases)))
     end
-    weeklycases = ([0.0; 0.0; sma(Int64[weeklycases...], 3)] .+ weeklycases) / 2
+    weeklycases = ([0.0; 0.0; sma(Float64[weeklycases...], 3)] .+ weeklycases) / 2
     (s[1, :state], weeklycases)
 end
 
@@ -150,7 +156,7 @@ regionplots = map(enumerate(byregion)) do (i, br)
     plot!(p1, ylims = (0, maxcases * 1.1))
     mkpath("output")
     savefig(p1, joinpath("output", "variantcases $i.png"))
-    plot!(p2, ylims = (1, log10(maxcases) * 1.1))
+    plot!(p2, ylims = (-5, log10(maxcases) * 1.1))
     savefig(p2, joinpath("output", "variantcases log10 $i.png"))
 
     # vshares = map(enumerate(byvariant)) do (i, v)
