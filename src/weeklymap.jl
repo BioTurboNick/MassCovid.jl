@@ -62,7 +62,7 @@ function loadweekdata(path, date)
         rates = sheet["D2:D352"]
         ppos = sheet["I2:I352"]
     end
-    counts = [c == "<5" || 0 < c < 5 ? 2 : c for c ∈ countsraw] # replace "<5" with a number in range; or if state forgets to mask them.
+    counts = [c == "<5" || c == "file" || 0 < c < 5 ? 2 : c for c ∈ countsraw] # replace "<5" with a number in range; or if state forgets to mask them.
     
     return counts, rates, ppos
 end
