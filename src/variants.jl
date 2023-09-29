@@ -159,17 +159,17 @@ regionplots = map(enumerate(byregion)) do (i, br)
     plot!(p2, ylims = (-5, log10(maxcases) * 1.1))
     savefig(p2, joinpath("output", "variantcases log10 $i.png"))
 
-    # vshares = map(enumerate(byvariant)) do (i, v)
-    #     vshare = v.share[2:end]
-    #     if nrow(v) < nweeks
-    #         nweekspad = fill(0.0, nweeks - nrow(v))
-    #         vshare = vcat(vshare, nweekspad)
-    #     end
-    #     println(length(vshare))
-    # end
+    vshares = map(enumerate(byvariant)) do (i, v)
+        vshare = v.share[2:end]
+        if nrow(v) < nweeks
+            nweekspad = fill(0.0, nweeks - nrow(v))
+            vshare = vcat(vshare, nweekspad)
+        end
+        vshare .* regioncases[v[1, :usa_or_hhsregion]][2:end]
+    end
 
-    # areaplot!(p3, byvariant[1].week_ending_date[2:end], reduce(hcat, vshares), label = reduce(hcat, [v.variant[1] for v ∈ byvariant]))
-    # plot!(p3, ylims = (1, maxcases * 1.2))
-    # savefig(p3, joinpath("output", "variantcases area $i.png"))
-    return p1, p2#, p3
+    areaplot!(p3, byvariant[1].week_ending_date[2:end], reduce(hcat, vshares), label = reduce(hcat, [v.variant[1] for v ∈ byvariant]))
+    plot!(p3, ylims = (0, maxcases * 1.2))
+    savefig(p3, joinpath("output", "variantcases area $i.png"))
+    return p1, p2, p3
 end
